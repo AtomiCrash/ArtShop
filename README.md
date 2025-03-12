@@ -42,7 +42,6 @@ ArtShop<br>
 ├── pom.xml<br>
 └── README.md<br>
 
-Copy
 
 ---
 
