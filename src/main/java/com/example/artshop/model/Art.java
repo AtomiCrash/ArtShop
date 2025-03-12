@@ -1,11 +1,14 @@
 package com.example.artshop.model;
 
-import jakarta.persistence.*;
-import lombok.ToString;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "Arts")
-//@AllArgsConstructor
 public class Art {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,6 +23,7 @@ public class Art {
         this.artist = artist;
         this.year = year;
     }
+
     public Art(int id, String title, String artist, int year) {
         this.id = id;
         this.title = title;
@@ -56,7 +60,6 @@ public class Art {
         return year;
     }
 
-    // Сеттеры
     public void setId(int id) {
         this.id = id;
     }
