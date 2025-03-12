@@ -1,3 +1,6 @@
+<h1 align="center">ArtShop <a href="https://daniilshat.ru/" target="_blank">Daniil</a> 
+
+This is a REST API built with Spring Boot for an ArtShop website.
    ArtShop — это простое веб-приложение для управления коллекцией произведений искусства. Проект реализован на Spring Boot и предоставляет RESTful API для добавления, получения, обновления и удаления данных о произведениях искусства.
 
    Технологии: 
