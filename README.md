@@ -35,6 +35,8 @@ ArtShop<br>
 │ │ │ │ └── Art.java<br>
 │ │ │ ├── repository<br>
 │ │ │ │ └── ArtRepository.java<br>
+│ │ │ ├── service<br>
+│ │ │ │ └── ArtService.java<br>
 │ │ │ └── ArtShopApplication.java<br>
 │ │ └── resources<br>
 │ │ └── application.properties<br>
