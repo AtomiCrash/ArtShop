@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 public class ArtService {
     @Autowired
     private ArtRepository artRepository;
+    public static final String ART_NOT_FOUND = "Art with id %d not found";
 
     public Art addArt(Art art) {
         return artRepository.save(art);
@@ -22,19 +23,19 @@ public class ArtService {
 
     public Art getArtById(int id) {
         return artRepository.findById(id)
-                .orElseThrow(() -> new ArtNotFoundException("Art with id " + id + " not found"));
+                .orElseThrow(() -> new ArtNotFoundException(String.format(ART_NOT_FOUND, id)));
     }
 
     public void deleteArtById(int id) {
         if (!artRepository.existsById(id)) {
-            throw new ArtNotFoundException("Art with id " + id + " not found");
+            throw new ArtNotFoundException(String.format(ART_NOT_FOUND, id));
         }
         artRepository.deleteById(id);
     }
 
     public Art updateArt(Art art) {
         if (!artRepository.existsById(art.getId())) {
-            throw new ArtNotFoundException("Art with id " + art.getId() + " not found");
+            throw new ArtNotFoundException(String.format(ART_NOT_FOUND, art.getId()));
         }
         return artRepository.save(art);
     }
