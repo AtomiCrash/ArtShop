@@ -1,41 +1,29 @@
 package com.example.artshop.controller;
 
+import com.example.artshop.dto.ArtDTO;
+import com.example.artshop.dto.ArtRequest;
 import com.example.artshop.model.Art;
+import com.example.artshop.repository.ArtRepository;
 import com.example.artshop.service.ArtService;
 import java.util.List;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/art")
+//@RequestMapping("/arts")
 public class ArtController {
-    private static final Logger LOG = org.slf4j.LoggerFactory.getLogger(ArtController.class);
-
     @Autowired
     private ArtService artService;
 
-    @PostMapping("/add")
-    public void addArt(@RequestBody Art art) {
-        LOG.info("New row: {}", artService.addArt(art));
+    @PostMapping("/api/art/add")
+    public Art addArt(@RequestBody ArtDTO artDTO) {
+        return artService.addArt(artDTO);
     }
 
-    @GetMapping("/all")
+    @GetMapping
     public List<Art> getAllArts() {
         return artService.getAllArts();
-    }
-
-    @GetMapping("/")
-    public Art getArtById(@RequestParam String title) {
-        return artService.getArtByTitle(title);
     }
 
     @GetMapping("/{id}")
@@ -43,13 +31,23 @@ public class ArtController {
         return artService.getArtById(id);
     }
 
-    @DeleteMapping("/id")
-    public void deleteArtById(@RequestParam int id) {
+    @DeleteMapping("/{id}")
+    public void deleteArtById(@PathVariable int id) {
         artService.deleteArtById(id);
     }
 
-    @PutMapping("/artput")
-    public Art changeArt(@RequestBody final Art art) {
-        return artService.updateArt(art);
+    @PutMapping("/{id}")
+    public Art updateArt(@PathVariable int id, @RequestBody ArtRequest artRequest) {
+        return artService.updateArt(id, artRequest.getArt(), artRequest.getArtistIds());
+    }
+
+    @PostMapping("/{artId}/artists/{artistId}")
+    public Art addArtistToArt(@PathVariable int artId, @PathVariable int artistId) {
+        return artService.addArtistToArt(artId, artistId);
+    }
+
+    @DeleteMapping("/{artId}/artists/{artistId}")
+    public Art removeArtistFromArt(@PathVariable int artId, @PathVariable int artistId) {
+        return artService.removeArtistFromArt(artId, artistId);
     }
 }
