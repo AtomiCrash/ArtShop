@@ -1,51 +1,53 @@
 package com.example.artshop.controller;
 
+import com.example.artshop.dto.ArtDTO;
+import com.example.artshop.dto.ArtRequest;
 import com.example.artshop.model.Art;
 import com.example.artshop.repository.ArtRepository;
 import com.example.artshop.service.ArtService;
 import java.util.List;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
+//@RequestMapping("/arts")
 public class ArtController {
-    private static final Logger LOG = org.slf4j.LoggerFactory.getLogger(ArtController.class);
-
     @Autowired
     private ArtService artService;
 
     @PostMapping("/api/art/add")
-    public void addArt(@RequestBody Art art) {
-        LOG.info("New row: {}", artService.addArt(art));
+    public Art addArt(@RequestBody ArtDTO artDTO) {
+        return artService.addArt(artDTO);
     }
 
-    @GetMapping("/api/art/all")
-    public String getAllArts() {
-        List<Art> arts = artService.getAllArts();
-        return arts.toString();
+    @GetMapping
+    public List<Art> getAllArts() {
+        return artService.getAllArts();
     }
 
-    @GetMapping("/api/art/id")
-    public String getArtById(@RequestParam int id) {
-        Art art = artService.getArtById(id);
-        return art.toString();
+    @GetMapping("/{id}")
+    public Art getArtById(@PathVariable int id) {
+        return artService.getArtById(id);
     }
 
-    @DeleteMapping("/api/art/id")
-    public void deleteArtById(@RequestParam int id) {
+    @DeleteMapping("/{id}")
+    public void deleteArtById(@PathVariable int id) {
         artService.deleteArtById(id);
     }
 
-    @PutMapping("/api/artput")
-    public String changeArt(@RequestBody final Art art) {
-        Art updatedArt = artService.updateArt(art);
-        return "Updated: " + updatedArt.toString();
+    @PutMapping("/{id}")
+    public Art updateArt(@PathVariable int id, @RequestBody ArtRequest artRequest) {
+        return artService.updateArt(id, artRequest.getArt(), artRequest.getArtistIds());
+    }
+
+    @PostMapping("/{artId}/artists/{artistId}")
+    public Art addArtistToArt(@PathVariable int artId, @PathVariable int artistId) {
+        return artService.addArtistToArt(artId, artistId);
+    }
+
+    @DeleteMapping("/{artId}/artists/{artistId}")
+    public Art removeArtistFromArt(@PathVariable int artId, @PathVariable int artistId) {
+        return artService.removeArtistFromArt(artId, artistId);
     }
 }
