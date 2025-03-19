@@ -39,4 +39,9 @@ public class ArtService {
         }
         return artRepository.save(art);
     }
+
+    public Art getArtByTitle(String title) {
+        return artRepository.findByTitle(title)
+                .orElseThrow(() -> new ArtNotFoundException(String.format(ART_NOT_FOUND, title)));
+    }
 }
