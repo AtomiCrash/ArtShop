@@ -12,6 +12,7 @@ public class ArtService {
     @Autowired
     private ArtRepository artRepository;
     public static final String ART_NOT_FOUND = "Art with id %d not found";
+    public static final String ART_NOT_FOUNDSTRING = "Art with title %s not found";
 
     public Art addArt(Art art) {
         return artRepository.save(art);
@@ -42,6 +43,6 @@ public class ArtService {
 
     public Art getArtByTitle(String title) {
         return artRepository.findByTitle(title)
-                .orElseThrow(() -> new ArtNotFoundException(String.format(ART_NOT_FOUND, title)));
+                .orElseThrow(() -> new ArtNotFoundException(String.format(ART_NOT_FOUNDSTRING, title)));
     }
 }
