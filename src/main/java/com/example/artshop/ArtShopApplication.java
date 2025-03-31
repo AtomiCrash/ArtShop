@@ -9,3 +9,4 @@ public class ArtShopApplication {
         SpringApplication.run(ArtShopApplication.class, args);
     }
 }
+
