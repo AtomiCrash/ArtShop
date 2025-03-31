@@ -1,99 +1,49 @@
 package com.example.artshop.service;
 
-import com.example.artshop.dto.ArtistDTO;
-import com.example.artshop.dto.ArtistPatchDTO;
-import com.example.artshop.exception.NotFoundException;
+import com.example.artshop.exception.ArtistNotFoundException;
 import com.example.artshop.model.Artist;
 import com.example.artshop.repository.ArtistRepository;
-import jakarta.transaction.Transactional;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.util.List;
 
 @Service
 public class ArtistService {
-    private final ArtistRepository artistRepository;
-
     @Autowired
-    public ArtistService(ArtistRepository artistRepository) {
-        this.artistRepository = artistRepository;
-    }
+    private ArtistRepository artistRepository;
 
-    @Transactional
-    public Artist createArtist(ArtistDTO artistDTO) {
-        Artist artist = new Artist();
-        artist.setFirstName(artistDTO.getFirstName());
-        artist.setMiddleName(artistDTO.getMiddleName());
-        artist.setLastName(artistDTO.getLastName());
+    public static final String ARTIST_NOT_FOUND = "Artist with id %d not found";
+
+    // Добавление художника
+    public Artist addArtist(Artist artist) {
         return artistRepository.save(artist);
     }
 
-    @Transactional
+    // Получение всех художников
     public List<Artist> getAllArtists() {
         return artistRepository.findAll();
     }
 
-    @Transactional
-    public Optional<Artist> getArtistById(Integer id) {
-        return artistRepository.findById(id);
+    // Получение художника по ID
+    public Artist getArtistById(int id) {
+        return artistRepository.findById(id)
+                .orElseThrow(() -> new ArtistNotFoundException(String.format(ARTIST_NOT_FOUND, id)));
     }
 
-    @Transactional
-    public Artist updateArtist(Integer id, ArtistDTO artistDTO) {
-        Artist artist = artistRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Artist not found with id: " + id));
-
-        artist.setFirstName(artistDTO.getFirstName());
-        artist.setMiddleName(artistDTO.getMiddleName());
-        artist.setLastName(artistDTO.getLastName());
-
-        return artistRepository.save(artist);
+    // Удаление художника по ID
+    public void deleteArtistById(int id) {
+        if (!artistRepository.existsById(id)) {
+            throw new ArtistNotFoundException(String.format(ARTIST_NOT_FOUND, id));
+        }
+        artistRepository.deleteById(id);
     }
 
-    @Transactional
-    public void deleteArtist(Integer id) {
-        Artist artist = artistRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Artist not found with id: " + id));
+    // Обновление художника
+    public Artist updateArtist(int id, Artist artist) {
+        Artist existingArtist = artistRepository.findById(id)
+                .orElseThrow(() -> new ArtistNotFoundException(String.format(ARTIST_NOT_FOUND, id)));
 
-        // Разрываем связи перед удалением
-        artist.getArts().forEach(art -> art.getArtists().remove(artist));
-        artistRepository.delete(artist);
-    }
-
-    @Transactional
-    public List<Artist> searchArtists(String firstName, String lastName) {
-        if (firstName != null && lastName != null) {
-            return artistRepository.findByFirstNameContainingIgnoreCaseAndLastNameContainingIgnoreCase(firstName,
-                    lastName);
-        } else if (firstName != null) {
-            return artistRepository.findByFirstNameContainingIgnoreCase(firstName);
-        } else if (lastName != null) {
-            return artistRepository.findByLastNameContainingIgnoreCase(lastName);
-        }
-        return Collections.emptyList();
-    }
-
-    @Transactional
-    public Artist patchArtist(Integer id, ArtistPatchDTO artistPatchDTO) {
-        if (!artistPatchDTO.hasUpdates()) {
-            throw new IllegalArgumentException("No fields to update");
-        }
-
-        Artist artist = artistRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Artist not found with id: " + id));
-
-        if (artistPatchDTO.getFirstName() != null) {
-            artist.setFirstName(artistPatchDTO.getFirstName());
-        }
-        if (artistPatchDTO.getMiddleName() != null) {
-            artist.setMiddleName(artistPatchDTO.getMiddleName());
-        }
-        if (artistPatchDTO.getLastName() != null) {
-            artist.setLastName(artistPatchDTO.getLastName());
-        }
-
-        return artistRepository.save(artist);
+        existingArtist.setName(artist.getName());
+        return artistRepository.save(existingArtist);
     }
 }

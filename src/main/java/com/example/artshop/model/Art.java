@@ -1,7 +1,5 @@
 package com.example.artshop.model;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -9,8 +7,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -18,17 +16,12 @@ import java.util.Set;
 @Table(name = "Arts")
 public class Art {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private int id;
     private String title;
     private int year;
 
-    @ManyToOne(cascade = CascadeType.MERGE)
-    @JoinColumn(name = "classification_id")
-    @JsonManagedReference
-    private Classification classification;
-
-    @ManyToMany(cascade = CascadeType.MERGE)
+    @ManyToMany
     @JoinTable(
             name = "art_artist",
             joinColumns = @JoinColumn(name = "art_id"),
@@ -47,6 +40,15 @@ public class Art {
         this.id = id;
         this.title = title;
         this.year = year;
+    }
+
+    @Override
+    public String toString() {
+        return "Art{" + '\n' +
+                "id=" + id + '\n' +
+                "title='" + title + '\'' + '\n' +
+                "year=" + year + '\n' +
+                '}';
     }
 
     public int getId() {
@@ -79,13 +81,5 @@ public class Art {
 
     public void setArtists(Set<Artist> artists) {
         this.artists = artists;
-    }
-
-    public Classification getClassification() {
-        return classification;
-    }
-
-    public void setClassification(Classification classification) {
-        this.classification = classification;
     }
 }

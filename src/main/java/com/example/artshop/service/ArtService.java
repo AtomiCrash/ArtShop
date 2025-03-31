@@ -1,228 +1,108 @@
 package com.example.artshop.service;
 
 import com.example.artshop.dto.ArtDTO;
-import com.example.artshop.dto.ArtPatchDTO;
-import com.example.artshop.dto.ArtistDTO;
-import com.example.artshop.dto.ClassificationDTO;
-import com.example.artshop.exception.NotFoundException;
+import com.example.artshop.exception.ArtNotFoundException;
+import com.example.artshop.exception.ArtistNotFoundException;
 import com.example.artshop.model.Art;
 import com.example.artshop.model.Artist;
-import com.example.artshop.model.Classification;
 import com.example.artshop.repository.ArtRepository;
-import com.example.artshop.repository.ArtistRepository;
-import com.example.artshop.repository.ClassificationRepository;
-import jakarta.persistence.EntityNotFoundException;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import com.example.artshop.repository.ArtistRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ArtService {
-    private final ArtRepository artRepository;
-    private final ArtistRepository artistRepository;
-    private final ClassificationRepository сlassificationRepository;
-
-    public static final String ART_NOT_FOUND = "Art with id %d not found";
-    public static final String ART_NOT_FOUNDSTRING = "Art with title %s not found";
-    private final ClassificationRepository classificationRepository;
+    @Autowired
+    private ArtRepository artRepository;
 
     @Autowired
-    public ArtService(ArtRepository artRepository, ArtistRepository artistRepository,
-                      ClassificationRepository сlassificationRepository,
-                      ClassificationRepository classificationRepository) {
-        this.artRepository = artRepository;
-        this.artistRepository = artistRepository;
-        this.сlassificationRepository = сlassificationRepository;
-        this.classificationRepository = classificationRepository;
-    }
+    private ArtistRepository artistRepository;
 
-    @Transactional
+    public static final String ART_NOT_FOUND = "Art with id %d not found";
+    public static final String ARTIST_NOT_FOUND = "Artist with id %d not found";
+
+    // Добавление картины с возможностью указать художников
     public Art addArt(ArtDTO artDTO) {
-        if (artDTO == null) {
-            throw new IllegalArgumentException("ArtDTO cannot be null");
-        }
-
         Art art = new Art();
         art.setTitle(artDTO.getTitle());
         art.setYear(artDTO.getYear());
 
-        if (artDTO.getClassification() != null) {
-            Classification classification = processClassification(artDTO.getClassification());
-            art.setClassification(classification);
+        Set<Artist> artists = new HashSet<>();
+        for (String artistName : artDTO.getArtist()) {
+            Artist artist = artistRepository.findByName(artistName)
+                    .orElseGet(() -> {
+                        Artist newArtist = new Artist(artistName);
+                        return artistRepository.save(newArtist);
+                    });
+            artists.add(artist);
         }
-
-        if (artDTO.getArtists() != null && !artDTO.getArtists().isEmpty()) {
-            Set<Artist> artists = new HashSet<>();
-            for (ArtistDTO artistDTO : artDTO.getArtists()) {
-                Artist artist = processArtist(artistDTO);
-                artists.add(artist);
-            }
-            art.setArtists(artists);
-        }
+        art.setArtists(artists);
 
         return artRepository.save(art);
     }
 
-    private Classification processClassification(ClassificationDTO classificationDTO) {
-        if (classificationDTO == null) {
-            return null;
-        }
-
-        Classification classification = null;
-
-        if (classificationDTO.getId() != null) {
-            classification = сlassificationRepository.findById(classificationDTO.getId())
-                    .orElse(null);
-        }
-
-        if (classification == null && classificationDTO.getName() != null) {
-            classification = сlassificationRepository.findByName(classificationDTO.getName());
-        }
-
-        if (classification == null) {
-            classification = new Classification();
-            classification.setName(classificationDTO.getName());
-            classification.setDescription(classificationDTO.getDescription());
-            classification = сlassificationRepository.save(classification);
-        }
-
-        return classification;
-    }
-
-    private Artist processArtist(ArtistDTO artistDTO) {
-        if (artistDTO.getLastName() == null || artistDTO.getLastName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Artist last name is required");
-        }
-
-        if (artistDTO.getId() != null) {
-            return artistRepository.findById(artistDTO.getId())
-                  .orElseThrow(() -> new NotFoundException("Artist not found with id: " + artistDTO.getId()));
-        } else {
-            Artist artist = new Artist();
-            artist.setFirstName(artistDTO.getFirstName());
-            artist.setLastName(artistDTO.getLastName());
-            artist.setMiddleName(artistDTO.getMiddleName());
-
-            return artistRepository.save(artist);
-        }
-    }
-
-    @Transactional
-    public Art patchArt(int id, ArtPatchDTO artPatchDTO) {
-        if (!artPatchDTO.hasUpdates()) {
-            throw new IllegalArgumentException("No fields to update");
-        }
-
-        Art art = artRepository.findWithArtistsById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Art not found with id: " + id));
-
-        if (artPatchDTO.getTitle() != null) {
-            art.setTitle(artPatchDTO.getTitle());
-        }
-
-        if (artPatchDTO.getYear() != null) {
-            art.setYear(artPatchDTO.getYear());
-        }
-
-        if (artPatchDTO.getClassificationId() != 0) {
-            Classification classification = classificationRepository.findById(artPatchDTO.getClassificationId());
-            if (classification == null) {
-                throw new EntityNotFoundException("Classification not found");
-            }
-            art.setClassification(classification);
-        }
-
-        if (artPatchDTO.getArtistIds() != null) {
-            updateArtists(art, artPatchDTO.getArtistIds());
-        }
-
-        return artRepository.save(art);
-    }
-
-    private void updateArtists(Art art, Set<Integer> newArtistIds) {
-        art.getArtists().clear();
-
-        if (!newArtistIds.isEmpty()) {
-            Set<Artist> artists = (Set<Artist>) artistRepository.findAllById(newArtistIds);
-            if (artists.size() != newArtistIds.size()) {
-                throw new EntityNotFoundException("Some artists not found");
-            }
-            art.setArtists(artists);
-        }
-    }
-
-    @Transactional(readOnly = true)
+    // Получение всех картин
     public List<Art> getAllArts() {
         return artRepository.findAll();
     }
 
-    @Transactional(readOnly = true)
+    // Получение картины по ID
     public Art getArtById(int id) {
         return artRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(String.format(ART_NOT_FOUND, id)));
+                .orElseThrow(() -> new ArtNotFoundException(String.format(ART_NOT_FOUND, id)));
     }
 
-    @Transactional
-    public Art updateArt(int id, ArtDTO artDTO) {
-        Art art = artRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Art not found with id: " + id));
-
-        art.setTitle(artDTO.getTitle());
-        art.setYear(artDTO.getYear());
-
-        if (artDTO.getArtists() != null) {
-            art.getArtists().forEach(artist -> artist.getArts().remove(art));
-            art.getArtists().clear();
-
-            Set<Artist> updatedArtists = new HashSet<>();
-
-            for (ArtistDTO artistDTO : artDTO.getArtists()) {
-                Artist artist;
-
-                if (artistDTO.getId() != null) {
-                    artist = artistRepository.findById(artistDTO.getId())
-                            .orElseThrow(() -> new NotFoundException(
-                                    "Artist not found with id: " + artistDTO.getId()));
-                } else {
-                    artist = new Artist();
-                    artist.setFirstName(artistDTO.getFirstName());
-                    artist.setMiddleName(artistDTO.getMiddleName());
-                    artist.setLastName(artistDTO.getLastName());
-                    artist = artistRepository.save(artist);
-                }
-
-                updatedArtists.add(artist);
-                artist.getArts().add(art);
-            }
-
-            art.setArtists(updatedArtists);
+    // Удаление картины по ID
+    public void deleteArtById(int id) {
+        if (!artRepository.existsById(id)) {
+            throw new ArtNotFoundException(String.format(ART_NOT_FOUND, id));
         }
+        artRepository.deleteById(id);
+    }
 
+    // Обновление картины с возможностью обновить список художников
+    public Art updateArt(int id, Art art, List<Integer> artistIds) {
+        Art existingArt = artRepository.findById(id)
+                .orElseThrow(() -> new ArtNotFoundException(String.format(ART_NOT_FOUND, id)));
+
+        existingArt.setTitle(art.getTitle());
+        existingArt.setYear(art.getYear());
+
+        Set<Artist> artists = new HashSet<>();
+        for (Integer artistId : artistIds) {
+            Artist artist = artistRepository.findById(artistId)
+                    .orElseThrow(() -> new ArtistNotFoundException(String.format(ARTIST_NOT_FOUND, artistId)));
+            artists.add(artist);
+        }
+        existingArt.setArtists(artists);
+
+        return artRepository.save(existingArt);
+    }
+
+    // Добавление художника к картине
+    public Art addArtistToArt(int artId, int artistId) {
+        Art art = artRepository.findById(artId)
+                .orElseThrow(() -> new ArtNotFoundException(String.format(ART_NOT_FOUND, artId)));
+        Artist artist = artistRepository.findById(artistId)
+                .orElseThrow(() -> new ArtistNotFoundException(String.format(ARTIST_NOT_FOUND, artistId)));
+
+        art.getArtists().add(artist);
         return artRepository.save(art);
     }
 
-    @Transactional
-    public void deleteArtById(int id) {
-        Art art = artRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Art not found with id: " + id));
+    // Удаление художника из картины
+    public Art removeArtistFromArt(int artId, int artistId) {
+        Art art = artRepository.findById(artId)
+                .orElseThrow(() -> new ArtNotFoundException(String.format(ART_NOT_FOUND, artId)));
+        Artist artist = artistRepository.findById(artistId)
+                .orElseThrow(() -> new ArtistNotFoundException(String.format(ARTIST_NOT_FOUND, artistId)));
 
-        for (Artist artist : art.getArtists()) {
-            artist.getArts().remove(art);
-        }
-        art.getArtists().clear();
-
-        artRepository.delete(art);
-    }
-
-    public Art getArtByTitle(String title) {
-        return artRepository.findByTitle(title)
-                .orElseThrow(() -> new NotFoundException(ART_NOT_FOUNDSTRING + title));
-    }
-
-    public ClassificationRepository getСlassificationRepository() {
-        return сlassificationRepository;
+        art.getArtists().remove(artist);
+        return artRepository.save(art);
     }
 }
