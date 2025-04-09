@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -36,6 +37,12 @@ public class ClassificationController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @GetMapping("/by-art")
+    public ResponseEntity<List<Classification>> getClassificationsByArtTitle(@RequestParam String artTitle) {
+        List<Classification> classifications = classificationService.getClassificationsByArtTitle(artTitle);
+        return ResponseEntity.ok(classifications);
     }
 
     @PostMapping("/add")
@@ -69,5 +76,10 @@ public class ClassificationController {
         } else {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @GetMapping("/cache-info")
+    public ResponseEntity<String> getClassificationCacheInfo() {
+        return ResponseEntity.ok(classificationService.getCacheInfo());
     }
 }

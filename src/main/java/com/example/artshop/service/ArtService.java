@@ -1,5 +1,6 @@
 package com.example.artshop.service;
 
+import com.example.artshop.service.cache.EntityCache;
 import com.example.artshop.dto.ArtDTO;
 import com.example.artshop.dto.ArtPatchDTO;
 import com.example.artshop.dto.ArtistDTO;
@@ -14,6 +15,7 @@ import com.example.artshop.repository.ClassificationRepository;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ public class ArtService {
     private final ArtRepository artRepository;
     private final ArtistRepository artistRepository;
     private final ClassificationRepository сlassificationRepository;
+    private final EntityCache<Art> artCache;
 
     public static final String ART_NOT_FOUND = "Art with id %d not found";
     public static final String ART_NOT_FOUNDSTRING = "Art with title %s not found";
@@ -37,6 +40,12 @@ public class ArtService {
         this.artistRepository = artistRepository;
         this.сlassificationRepository = сlassificationRepository;
         this.classificationRepository = classificationRepository;
+        this.artCache = new EntityCache<>("Art");
+    }
+
+    @Transactional(readOnly = true)
+    public List<Art> getArtsByArtistName(String artistName) {
+        return artRepository.findByArtistsLastNameContainingIgnoreCase(artistName);
     }
 
     @Transactional
@@ -63,7 +72,9 @@ public class ArtService {
             art.setArtists(artists);
         }
 
-        return artRepository.save(art);
+        Art savedArt = artRepository.save(art);
+        artCache.put(savedArt.getId(), savedArt);
+        return savedArt;
     }
 
     private Classification processClassification(ClassificationDTO classificationDTO) {
@@ -99,7 +110,7 @@ public class ArtService {
 
         if (artistDTO.getId() != null) {
             return artistRepository.findById(artistDTO.getId())
-                  .orElseThrow(() -> new NotFoundException("Artist not found with id: " + artistDTO.getId()));
+                    .orElseThrow(() -> new NotFoundException("Artist not found with id: " + artistDTO.getId()));
         } else {
             Artist artist = new Artist();
             artist.setFirstName(artistDTO.getFirstName());
@@ -139,7 +150,9 @@ public class ArtService {
             updateArtists(art, artPatchDTO.getArtistIds());
         }
 
-        return artRepository.save(art);
+        Art updatedArt = artRepository.save(art);
+        artCache.update(id, updatedArt);
+        return updatedArt;
     }
 
     private void updateArtists(Art art, Set<Integer> newArtistIds) {
@@ -161,8 +174,13 @@ public class ArtService {
 
     @Transactional(readOnly = true)
     public Art getArtById(int id) {
-        return artRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException(String.format(ART_NOT_FOUND, id)));
+        return artCache.get(id)
+                .orElseGet(() -> {
+                    Art art = artRepository.findById(id)
+                            .orElseThrow(() -> new NotFoundException(String.format(ART_NOT_FOUND, id)));
+                    artCache.put(id, art);
+                    return art;
+                });
     }
 
     @Transactional
@@ -201,7 +219,9 @@ public class ArtService {
             art.setArtists(updatedArtists);
         }
 
-        return artRepository.save(art);
+        Art updatedArt = artRepository.save(art);
+        artCache.update(id, updatedArt);
+        return updatedArt;
     }
 
     @Transactional
@@ -215,6 +235,7 @@ public class ArtService {
         art.getArtists().clear();
 
         artRepository.delete(art);
+        artCache.evict(id);
     }
 
     public Art getArtByTitle(String title) {
@@ -224,5 +245,9 @@ public class ArtService {
 
     public ClassificationRepository getСlassificationRepository() {
         return сlassificationRepository;
+    }
+
+    public String getCacheInfo() {
+        return artCache.getCacheInfo();
     }
 }

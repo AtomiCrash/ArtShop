@@ -1,5 +1,6 @@
 package com.example.artshop.service;
 
+import com.example.artshop.service.cache.EntityCache;
 import com.example.artshop.dto.ClassificationDTO;
 import com.example.artshop.dto.ClassificationPatchDTO;
 import com.example.artshop.model.Classification;
@@ -11,19 +12,42 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ClassificationService {
-    @Autowired
-    private ClassificationRepository classificationRepository;
+    private final ClassificationRepository classificationRepository;
+    private final EntityCache<Classification> classificationCache;
 
+    @Autowired
+    public ClassificationService(ClassificationRepository classificationRepository) {
+        this.classificationRepository = classificationRepository;
+        this.classificationCache = new EntityCache<>("Classification");
+    }
+
+    @Transactional(readOnly = true)
+    public List<Classification> getClassificationsByArtTitle(String artTitle) {
+        return classificationRepository.findByArtTitleContaining(artTitle);
+    }
+
+    @Transactional(readOnly = true)
     public List<Classification> getAllClassifications() {
         return classificationRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public Classification getClassificationById(int id) {
-        return classificationRepository.findById(id);
+        return classificationCache.get(id)
+                .orElseGet(() -> {
+                    Classification classification = classificationRepository.findById(id);
+                    if (classification != null) {
+                        classificationCache.put(id, classification);
+                    }
+                    return classification;
+                });
     }
 
+    @Transactional
     public Classification saveClassification(Classification classification) {
-        return classificationRepository.save(classification);
+        Classification saved = classificationRepository.save(classification);
+        classificationCache.put(saved.getId(), saved);
+        return saved;
     }
 
     @Transactional
@@ -44,11 +68,15 @@ public class ClassificationService {
             classification.setDescription(patchDTO.getDescription());
         }
 
-        return classificationRepository.save(classification);
+        Classification updated = classificationRepository.save(classification);
+        classificationCache.update(id, updated);
+        return updated;
     }
 
+    @Transactional
     public void deleteClassification(int id) {
         classificationRepository.deleteById(id);
+        classificationCache.evict(id);
     }
 
     @Transactional
@@ -61,6 +89,12 @@ public class ClassificationService {
         classification.setName(classificationDTO.getName());
         classification.setDescription(classificationDTO.getDescription());
 
-        return classificationRepository.save(classification);
+        Classification updated = classificationRepository.save(classification);
+        classificationCache.update(id, updated);
+        return updated;
+    }
+
+    public String getCacheInfo() {
+        return classificationCache.getCacheInfo();
     }
 }

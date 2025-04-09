@@ -66,6 +66,12 @@ public class ArtController {
         return ResponseEntity.ok(art);
     }
 
+    @GetMapping("/by-artist")
+    public ResponseEntity<List<Art>> getArtsByArtistName(@RequestParam String artistName) {
+        List<Art> arts = artService.getArtsByArtistName(artistName);
+        return ResponseEntity.ok(arts);
+    }
+
     @PatchMapping("/{id}")
     public ResponseEntity<ArtDTO> patchArt(
             @PathVariable int id,
@@ -86,5 +92,9 @@ public class ArtController {
         }
 
         return dto;
+    }
+    @GetMapping("/cache-info")
+    public ResponseEntity<String> getArtCacheInfo() {
+        return ResponseEntity.ok(artService.getCacheInfo());
     }
 }

@@ -1,5 +1,6 @@
 package com.example.artshop.service;
 
+import com.example.artshop.service.cache.EntityCache;
 import com.example.artshop.dto.ArtistDTO;
 import com.example.artshop.dto.ArtistPatchDTO;
 import com.example.artshop.exception.NotFoundException;
@@ -15,10 +16,17 @@ import org.springframework.stereotype.Service;
 @Service
 public class ArtistService {
     private final ArtistRepository artistRepository;
+    private final EntityCache<Artist> artistCache;
 
     @Autowired
     public ArtistService(ArtistRepository artistRepository) {
         this.artistRepository = artistRepository;
+        this.artistCache = new EntityCache<>("Artist");
+    }
+
+    @Transactional
+    public List<Artist> getArtistsByArtTitle(String artTitle) {
+        return artistRepository.findByArtTitleContaining(artTitle);
     }
 
     @Transactional
@@ -27,7 +35,10 @@ public class ArtistService {
         artist.setFirstName(artistDTO.getFirstName());
         artist.setMiddleName(artistDTO.getMiddleName());
         artist.setLastName(artistDTO.getLastName());
-        return artistRepository.save(artist);
+
+        Artist savedArtist = artistRepository.save(artist);
+        artistCache.put(savedArtist.getId(), savedArtist);
+        return savedArtist;
     }
 
     @Transactional
@@ -37,7 +48,13 @@ public class ArtistService {
 
     @Transactional
     public Optional<Artist> getArtistById(Integer id) {
-        return artistRepository.findById(id);
+        return artistCache.get(id)
+                .map(Optional::of)
+                .orElseGet(() -> {
+                    Optional<Artist> artist = artistRepository.findById(id);
+                    artist.ifPresent(a -> artistCache.put(a.getId(), a));
+                    return artist;
+                });
     }
 
     @Transactional
@@ -49,7 +66,9 @@ public class ArtistService {
         artist.setMiddleName(artistDTO.getMiddleName());
         artist.setLastName(artistDTO.getLastName());
 
-        return artistRepository.save(artist);
+        Artist updatedArtist = artistRepository.save(artist);
+        artistCache.update(id, updatedArtist);
+        return updatedArtist;
     }
 
     @Transactional
@@ -60,6 +79,7 @@ public class ArtistService {
         // Разрываем связи перед удалением
         artist.getArts().forEach(art -> art.getArtists().remove(artist));
         artistRepository.delete(artist);
+        artistCache.evict(id);
     }
 
     @Transactional
@@ -94,6 +114,12 @@ public class ArtistService {
             artist.setLastName(artistPatchDTO.getLastName());
         }
 
-        return artistRepository.save(artist);
+        Artist patchedArtist = artistRepository.save(artist);
+        artistCache.update(id, patchedArtist);
+        return patchedArtist;
+    }
+
+    public String getCacheInfo() {
+        return artistCache.getCacheInfo();
     }
 }

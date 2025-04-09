@@ -45,6 +45,12 @@ public class ArtistController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/by-art")
+    public ResponseEntity<List<Artist>> getArtistsByArtTitle(@RequestParam String artTitle) {
+        List<Artist> artists = artistService.getArtistsByArtTitle(artTitle);
+        return ResponseEntity.ok(artists);
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<Artist> updateArtist(
             @PathVariable Integer id,
@@ -73,5 +79,10 @@ public class ArtistController {
             @RequestBody ArtistPatchDTO artistPatchDTO) {
         Artist patchedArtist = artistService.patchArtist(id, artistPatchDTO);
         return ResponseEntity.ok(patchedArtist);
+    }
+
+    @GetMapping("/cache-info")
+    public ResponseEntity<String> getArtistCacheInfo() {
+        return ResponseEntity.ok(artistService.getCacheInfo());
     }
 }
