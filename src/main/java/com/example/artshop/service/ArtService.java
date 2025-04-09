@@ -1,6 +1,5 @@
 package com.example.artshop.service;
 
-import com.example.artshop.service.cache.EntityCache;
 import com.example.artshop.dto.ArtDTO;
 import com.example.artshop.dto.ArtPatchDTO;
 import com.example.artshop.dto.ArtistDTO;
@@ -12,6 +11,7 @@ import com.example.artshop.model.Classification;
 import com.example.artshop.repository.ArtRepository;
 import com.example.artshop.repository.ArtistRepository;
 import com.example.artshop.repository.ClassificationRepository;
+import com.example.artshop.service.cache.EntityCache;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.HashSet;
 import java.util.List;

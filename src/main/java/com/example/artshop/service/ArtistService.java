@@ -1,11 +1,11 @@
 package com.example.artshop.service;
 
-import com.example.artshop.service.cache.EntityCache;
 import com.example.artshop.dto.ArtistDTO;
 import com.example.artshop.dto.ArtistPatchDTO;
 import com.example.artshop.exception.NotFoundException;
 import com.example.artshop.model.Artist;
 import com.example.artshop.repository.ArtistRepository;
+import com.example.artshop.service.cache.EntityCache;
 import jakarta.transaction.Transactional;
 import java.util.Collections;
 import java.util.List;

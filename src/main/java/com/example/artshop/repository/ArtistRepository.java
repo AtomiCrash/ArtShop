@@ -31,6 +31,7 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
     @Query("SELECT a FROM Artist a LEFT JOIN FETCH a.arts WHERE a.id = :id")
     Optional<Artist> findWithArtsById(@Param("id") Integer id);
 
-    @Query("SELECT DISTINCT a FROM Artist a JOIN a.arts art WHERE LOWER(art.title) LIKE LOWER(concat('%', :artTitle, '%'))")
+    @Query("SELECT DISTINCT a FROM Artist a JOIN a.arts art WHERE LOWER(art.title) " +
+            "LIKE LOWER(concat('%', :artTitle, '%'))")
     List<Artist> findByArtTitleContaining(@Param("artTitle") String artTitle);
 }

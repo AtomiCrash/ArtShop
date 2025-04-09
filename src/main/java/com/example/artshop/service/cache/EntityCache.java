@@ -61,7 +61,8 @@ public class EntityCache<T> {
             return entityName + " cache is empty";
         }
         StringBuilder info = new StringBuilder(entityName + " cache contains " + cache.size() + " items:\n");
-        cache.forEach((id, entity) -> info.append("- ID: ").append(id).append(", Entity: ").append(entity).append("\n"));
+        cache.forEach((id, entity) -> info.append("- ID: ")
+                .append(id).append(", Entity: ").append(entity).append("\n"));
         return info.toString();
     }
 }

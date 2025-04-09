@@ -93,6 +93,7 @@ public class ArtController {
 
         return dto;
     }
+
     @GetMapping("/cache-info")
     public ResponseEntity<String> getArtCacheInfo() {
         return ResponseEntity.ok(artService.getCacheInfo());

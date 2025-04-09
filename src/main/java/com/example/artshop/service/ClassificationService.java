@@ -1,10 +1,10 @@
 package com.example.artshop.service;
 
-import com.example.artshop.service.cache.EntityCache;
 import com.example.artshop.dto.ClassificationDTO;
 import com.example.artshop.dto.ClassificationPatchDTO;
 import com.example.artshop.model.Classification;
 import com.example.artshop.repository.ClassificationRepository;
+import com.example.artshop.service.cache.EntityCache;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

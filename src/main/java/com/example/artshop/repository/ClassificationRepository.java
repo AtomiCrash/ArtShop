@@ -15,6 +15,7 @@ public interface ClassificationRepository extends JpaRepository<Classification, 
 
     Classification save(Classification classification);
 
-    @Query("SELECT DISTINCT c FROM Classification c JOIN c.arts a WHERE LOWER(a.title) LIKE LOWER(concat('%', :artTitle, '%'))")
+    @Query("SELECT DISTINCT c FROM Classification c JOIN c.arts a WHERE LOWER(a.title) " +
+            "LIKE LOWER(concat('%', :artTitle, '%'))")
     List<Classification> findByArtTitleContaining(@Param("artTitle") String artTitle);
 }
