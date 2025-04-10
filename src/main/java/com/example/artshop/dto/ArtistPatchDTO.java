@@ -1,7 +1,5 @@
 package com.example.artshop.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-
 public class ArtistPatchDTO {
     private String firstName;
     private String middleName;
