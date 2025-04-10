@@ -82,7 +82,6 @@ public class ArtistService {
         Artist artist = artistRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
 
-        // Разрываем связи перед удалением
         artist.getArts().forEach(art -> art.getArtists().remove(artist));
         artistRepository.delete(artist);
         artistCache.evict(id);
