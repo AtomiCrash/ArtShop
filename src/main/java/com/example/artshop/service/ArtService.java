@@ -25,20 +25,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class ArtService {
     private final ArtRepository artRepository;
     private final ArtistRepository artistRepository;
-    private final ClassificationRepository сlassificationRepository;
     private final EntityCache<Art> artCache;
+    private final ClassificationRepository classificationRepository;
 
     public static final String ART_NOT_FOUND = "Art with id %d not found";
     public static final String ART_NOT_FOUNDSTRING = "Art with title %s not found";
-    private final ClassificationRepository classificationRepository;
 
     @Autowired
     public ArtService(ArtRepository artRepository, ArtistRepository artistRepository,
-                      ClassificationRepository сlassificationRepository,
                       ClassificationRepository classificationRepository) {
         this.artRepository = artRepository;
         this.artistRepository = artistRepository;
-        this.сlassificationRepository = сlassificationRepository;
         this.classificationRepository = classificationRepository;
         this.artCache = new EntityCache<>("Art");
     }
@@ -89,19 +86,19 @@ public class ArtService {
         Classification classification = null;
 
         if (classificationDTO.getId() != null) {
-            classification = сlassificationRepository.findById(classificationDTO.getId())
+            classification = classificationRepository.findById(classificationDTO.getId())
                     .orElse(null);
         }
 
         if (classification == null && classificationDTO.getName() != null) {
-            classification = сlassificationRepository.findByName(classificationDTO.getName());
+            classification = classificationRepository.findByName(classificationDTO.getName());
         }
 
         if (classification == null) {
             classification = new Classification();
             classification.setName(classificationDTO.getName());
             classification.setDescription(classificationDTO.getDescription());
-            classification = сlassificationRepository.save(classification);
+            classification = classificationRepository.save(classification);
         }
 
         return classification;
@@ -248,7 +245,7 @@ public class ArtService {
     }
 
     public ClassificationRepository getСlassificationRepository() {
-        return сlassificationRepository;
+        return classificationRepository;
     }
 
     public String getCacheInfo() {
