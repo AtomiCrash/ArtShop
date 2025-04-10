@@ -30,6 +30,7 @@ public class ArtService {
 
     public static final String ART_NOT_FOUND = "Art with id %d not found";
     public static final String ART_NOT_FOUNDSTRING = "Art with title %s not found";
+    public static final String ART_NOT_FOUNDARTIST = "Artist not found with id: ";
 
     @Autowired
     public ArtService(ArtRepository artRepository, ArtistRepository artistRepository,
@@ -111,7 +112,7 @@ public class ArtService {
 
         if (artistDTO.getId() != null) {
             return artistRepository.findById(artistDTO.getId())
-                    .orElseThrow(() -> new NotFoundException("Artist not found with id: " + artistDTO.getId()));
+                    .orElseThrow(() -> new NotFoundException(ART_NOT_FOUNDARTIST + artistDTO.getId()));
         } else {
             Artist artist = new Artist();
             artist.setFirstName(artistDTO.getFirstName());
@@ -129,7 +130,7 @@ public class ArtService {
         }
 
         Art art = artRepository.findWithArtistsById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Art not found with id: " + id));
+                .orElseThrow(() -> new EntityNotFoundException(ART_NOT_FOUND + id));
 
         if (artPatchDTO.getTitle() != null) {
             art.setTitle(artPatchDTO.getTitle());
@@ -187,7 +188,7 @@ public class ArtService {
     @Transactional
     public Art updateArt(int id, ArtDTO artDTO) {
         Art art = artRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Art not found with id: " + id));
+                .orElseThrow(() -> new NotFoundException(ART_NOT_FOUND + id));
 
         art.setTitle(artDTO.getTitle());
         art.setYear(artDTO.getYear());
@@ -204,7 +205,7 @@ public class ArtService {
                 if (artistDTO.getId() != null) {
                     artist = artistRepository.findById(artistDTO.getId())
                             .orElseThrow(() -> new NotFoundException(
-                                    "Artist not found with id: " + artistDTO.getId()));
+                                    ART_NOT_FOUNDARTIST + artistDTO.getId()));
                 } else {
                     artist = new Artist();
                     artist.setFirstName(artistDTO.getFirstName());
@@ -228,7 +229,7 @@ public class ArtService {
     @Transactional
     public void deleteArtById(int id) {
         Art art = artRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Art not found with id: " + id));
+                .orElseThrow(() -> new NotFoundException(ART_NOT_FOUND + id));
 
         for (Artist artist : art.getArtists()) {
             artist.getArts().remove(art);
