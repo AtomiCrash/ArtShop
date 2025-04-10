@@ -28,33 +28,13 @@ public class ArtController {
         this.artService = artService;
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Art> updateArt(
-            @PathVariable int id,
-            @RequestBody ArtDTO artDTO) {
-        Art updatedArt = artService.updateArt(id, artDTO);
-        return ResponseEntity.ok(updatedArt);
-    }
-
-    @PostMapping("/add")
-    public ResponseEntity<Art> addArt(@RequestBody ArtDTO artDTO) {
-        Art savedArt = artService.addArt(artDTO);
-        return ResponseEntity.ok(savedArt);
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteArtById(@PathVariable int id) {
-        artService.deleteArtById(id);
-        return ResponseEntity.noContent().build();
-    }
-
     @GetMapping("/all")
     public ResponseEntity<List<Art>> getAllArts() {
         List<Art> arts = artService.getAllArts();
         return ResponseEntity.ok(arts);
     }
 
-    @GetMapping
+    @GetMapping("/title")
     public ResponseEntity<Art> getArtByTitle(@RequestParam String title) {
         Art art = artService.getArtByTitle(title);
         return ResponseEntity.ok(art);
@@ -67,8 +47,11 @@ public class ArtController {
     }
 
     @GetMapping("/by-artist")
-    public ResponseEntity<List<Art>> getArtsByArtistName(@RequestParam String artistName) {
+    public ResponseEntity<?> getArtsByArtistName(@RequestParam String artistName) {
         List<Art> arts = artService.getArtsByArtistName(artistName);
+        if (arts.isEmpty()) {
+            return ResponseEntity.ok("No artworks found for artist: " + artistName);
+        }
         return ResponseEntity.ok(arts);
     }
 
@@ -92,6 +75,26 @@ public class ArtController {
         }
 
         return dto;
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Art> updateArt(
+            @PathVariable int id,
+            @RequestBody ArtDTO artDTO) {
+        Art updatedArt = artService.updateArt(id, artDTO);
+        return ResponseEntity.ok(updatedArt);
+    }
+
+    @PostMapping("/add")
+    public ResponseEntity<Art> addArt(@RequestBody ArtDTO artDTO) {
+        Art savedArt = artService.addArt(artDTO);
+        return ResponseEntity.ok(savedArt);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteArtById(@PathVariable int id) {
+        artService.deleteArtById(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/cache-info")

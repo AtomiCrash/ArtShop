@@ -26,7 +26,11 @@ public class ArtistService {
 
     @Transactional
     public List<Artist> getArtistsByArtTitle(String artTitle) {
-        return artistRepository.findByArtTitleContaining(artTitle);
+        List<Artist> artists = artistRepository.findByArtTitleContaining(artTitle);
+        if (artists.isEmpty()) {
+            System.out.println("No artists found for artwork title: " + artTitle);
+        }
+        return artists;
     }
 
     @Transactional

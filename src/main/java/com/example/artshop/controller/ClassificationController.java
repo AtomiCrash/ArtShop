@@ -40,8 +40,20 @@ public class ClassificationController {
     }
 
     @GetMapping("/by-art")
-    public ResponseEntity<List<Classification>> getClassificationsByArtTitle(@RequestParam String artTitle) {
+    public ResponseEntity<?> getClassificationsByArtTitle(@RequestParam String artTitle) {
         List<Classification> classifications = classificationService.getClassificationsByArtTitle(artTitle);
+        if (classifications.isEmpty()) {
+            return ResponseEntity.ok("No classifications found for artwork title: " + artTitle);
+        }
+        return ResponseEntity.ok(classifications);
+    }
+
+    @GetMapping("/name")
+    public ResponseEntity<?> getClassificationsByName(@RequestParam String name) {
+        List<Classification> classifications = classificationService.getClassificationsByName(name);
+        if (classifications.isEmpty()) {
+            return ResponseEntity.ok("No classifications found with name containing: " + name);
+        }
         return ResponseEntity.ok(classifications);
     }
 

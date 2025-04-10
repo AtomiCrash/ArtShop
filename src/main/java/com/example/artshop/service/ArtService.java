@@ -45,7 +45,11 @@ public class ArtService {
 
     @Transactional(readOnly = true)
     public List<Art> getArtsByArtistName(String artistName) {
-        return artRepository.findByArtistsLastNameContainingIgnoreCase(artistName);
+        List<Art> arts = artRepository.findByArtistsLastNameContainingIgnoreCase(artistName);
+        if (arts.isEmpty()) {
+            System.out.println("No artworks found for artist: " + artistName);
+        }
+        return arts;
     }
 
     @Transactional

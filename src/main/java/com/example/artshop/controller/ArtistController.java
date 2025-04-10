@@ -27,12 +27,6 @@ public class ArtistController {
         this.artistService = artistService;
     }
 
-    @PostMapping("/add")
-    public ResponseEntity<Artist> createArtist(@RequestBody ArtistDTO artistDTO) {
-        Artist createdArtist = artistService.createArtist(artistDTO);
-        return ResponseEntity.ok(createdArtist);
-    }
-
     @GetMapping("/all")
     public ResponseEntity<List<Artist>> getAllArtists() {
         return ResponseEntity.ok(artistService.getAllArtists());
@@ -45,9 +39,20 @@ public class ArtistController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/by-art")
-    public ResponseEntity<List<Artist>> getArtistsByArtTitle(@RequestParam String artTitle) {
+    @GetMapping("/by-atr")
+    public ResponseEntity<?> getArtistsByArtTitle(@RequestParam String artTitle) {
         List<Artist> artists = artistService.getArtistsByArtTitle(artTitle);
+        if (artists.isEmpty()) {
+            return ResponseEntity.ok("No artists found for artwork title: " + artTitle);
+        }
+        return ResponseEntity.ok(artists);
+    }
+
+    @GetMapping("/name")
+    public ResponseEntity<List<Artist>> searchArtists(
+            @RequestParam(required = false) String firstName,
+            @RequestParam(required = false) String lastName) {
+        List<Artist> artists = artistService.searchArtists(firstName, lastName);
         return ResponseEntity.ok(artists);
     }
 
@@ -59,18 +64,16 @@ public class ArtistController {
         return ResponseEntity.ok(updatedArtist);
     }
 
+    @PostMapping("/add")
+    public ResponseEntity<Artist> createArtist(@RequestBody ArtistDTO artistDTO) {
+        Artist createdArtist = artistService.createArtist(artistDTO);
+        return ResponseEntity.ok(createdArtist);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteArtist(@PathVariable Integer id) {
         artistService.deleteArtist(id);
         return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/search")
-    public ResponseEntity<List<Artist>> searchArtists(
-            @RequestParam(required = false) String firstName,
-            @RequestParam(required = false) String lastName) {
-        List<Artist> artists = artistService.searchArtists(firstName, lastName);
-        return ResponseEntity.ok(artists);
     }
 
     @PatchMapping("/{id}")

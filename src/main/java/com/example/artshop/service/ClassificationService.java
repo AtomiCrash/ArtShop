@@ -23,7 +23,11 @@ public class ClassificationService {
 
     @Transactional(readOnly = true)
     public List<Classification> getClassificationsByArtTitle(String artTitle) {
-        return classificationRepository.findByArtTitleContaining(artTitle);
+        List<Classification> classifications = classificationRepository.findByArtTitleContaining(artTitle);
+        if (classifications.isEmpty()) {
+            System.out.println("No classifications found for artwork title: " + artTitle);
+        }
+        return classifications;
     }
 
     @Transactional(readOnly = true)
@@ -41,6 +45,18 @@ public class ClassificationService {
                     }
                     return classification;
                 });
+    }
+
+    @Transactional(readOnly = true)
+    public List<Classification> getClassificationsByName(String name) {
+        List<Classification> classifications = classificationRepository.findByNameContainingIgnoreCase(name);
+        if (classifications.isEmpty()) {
+            System.out.println("No classifications found with name containing: " + name);
+        } else {
+            // Добавляем найденные классификации в кэш
+            classifications.forEach(c -> classificationCache.put(c.getId(), c));
+        }
+        return classifications;
     }
 
     @Transactional
