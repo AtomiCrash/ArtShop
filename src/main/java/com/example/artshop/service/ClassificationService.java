@@ -54,7 +54,7 @@ public class ClassificationService {
     public List<Classification> getClassificationsByName(String name) {
         List<Classification> classifications = classificationRepository.findByNameContainingIgnoreCase(name);
         if (classifications.isEmpty()) {
-            System.out.println("No classifications found with name containing: " + name);
+            logger.warn("No classifications found with name containing: {}", name);
         } else {
             classifications.forEach(c -> classificationCache.put(c.getId(), c));
         }
