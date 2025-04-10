@@ -18,6 +18,8 @@ public class ArtistService {
     private final ArtistRepository artistRepository;
     private final EntityCache<Artist> artistCache;
 
+    public static final String ARTIST_NOT_FOUND = "Artist not found with id: ";
+
     @Autowired
     public ArtistService(ArtistRepository artistRepository) {
         this.artistRepository = artistRepository;
@@ -64,7 +66,7 @@ public class ArtistService {
     @Transactional
     public Artist updateArtist(Integer id, ArtistDTO artistDTO) {
         Artist artist = artistRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Artist not found with id: " + id));
+                .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
 
         artist.setFirstName(artistDTO.getFirstName());
         artist.setMiddleName(artistDTO.getMiddleName());
@@ -78,7 +80,7 @@ public class ArtistService {
     @Transactional
     public void deleteArtist(Integer id) {
         Artist artist = artistRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Artist not found with id: " + id));
+                .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
 
         // Разрываем связи перед удалением
         artist.getArts().forEach(art -> art.getArtists().remove(artist));
@@ -106,7 +108,7 @@ public class ArtistService {
         }
 
         Artist artist = artistRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Artist not found with id: " + id));
+                .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
 
         if (artistPatchDTO.getFirstName() != null) {
             artist.setFirstName(artistPatchDTO.getFirstName());

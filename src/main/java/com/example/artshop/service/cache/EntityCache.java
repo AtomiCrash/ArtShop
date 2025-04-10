@@ -8,6 +8,9 @@ public class EntityCache<T> {
     private final Map<Integer, T> cache;
     private final String entityName;
 
+    public static final String CACHE = "[CACHE] ";
+    public static final String CACHE_ID = " with id ";
+
     public EntityCache(String entityName) {
         this.entityName = entityName;
         this.cache = new LinkedHashMap<Integer, T>(5, 0.75f, true) {
@@ -21,7 +24,7 @@ public class EntityCache<T> {
     public Optional<T> get(Integer id) {
         Optional<T> entity = Optional.ofNullable(cache.get(id));
         if (entity.isPresent()) {
-            System.out.println("[CACHE] " + entityName + " with id " + id + " retrieved from cache");
+            System.out.println(CACHE + entityName + CACHE_ID + id + " retrieved from cache");
         }
         return entity;
     }
@@ -29,27 +32,27 @@ public class EntityCache<T> {
     public void put(Integer id, T entity) {
         if (!cache.containsKey(id)) {
             cache.put(id, entity);
-            System.out.println("[CACHE] " + entityName + " with id " + id + " added to cache");
+            System.out.println(CACHE + entityName + CACHE_ID + id + " added to cache");
         }
     }
 
     public void evict(Integer id) {
         if (cache.containsKey(id)) {
             cache.remove(id);
-            System.out.println("[CACHE] " + entityName + " with id " + id + " removed from cache");
+            System.out.println(CACHE + entityName + CACHE_ID + id + " removed from cache");
         }
     }
 
     public void update(Integer id, T entity) {
         if (cache.containsKey(id)) {
             cache.put(id, entity);
-            System.out.println("[CACHE] " + entityName + " with id " + id + " updated in cache");
+            System.out.println(CACHE + entityName + CACHE_ID + id + " updated in cache");
         }
     }
 
     public void clear() {
         cache.clear();
-        System.out.println("[CACHE] " + entityName + " cache cleared");
+        System.out.println(CACHE + entityName + " cache cleared");
     }
 
     public Map<Integer, T> getAllCachedItems() {

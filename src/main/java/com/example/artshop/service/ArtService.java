@@ -245,10 +245,6 @@ public class ArtService {
                 .orElseThrow(() -> new NotFoundException(ART_NOT_FOUNDSTRING + title));
     }
 
-    public ClassificationRepository getСlassificationRepository() {
-        return classificationRepository;
-    }
-
     public String getCacheInfo() {
         return artCache.getCacheInfo();
     }
