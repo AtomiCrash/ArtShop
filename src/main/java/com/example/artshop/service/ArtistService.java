@@ -10,6 +10,8 @@ import jakarta.transaction.Transactional;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 public class ArtistService {
     private final ArtistRepository artistRepository;
     private final EntityCache<Artist> artistCache;
+    private static final Logger logger = LoggerFactory.getLogger(ArtistService.class);
 
     public static final String ARTIST_NOT_FOUND = "Artist not found with id: ";
 
@@ -30,7 +33,7 @@ public class ArtistService {
     public List<Artist> getArtistsByArtTitle(String artTitle) {
         List<Artist> artists = artistRepository.findByArtTitleContaining(artTitle);
         if (artists.isEmpty()) {
-            System.out.println("No artists found for artwork title: " + artTitle);
+            logger.warn("No artists found for artwork title: {}", artTitle);
         }
         return artists;
     }

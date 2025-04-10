@@ -6,6 +6,8 @@ import com.example.artshop.model.Classification;
 import com.example.artshop.repository.ClassificationRepository;
 import com.example.artshop.service.cache.EntityCache;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClassificationService {
     private final ClassificationRepository classificationRepository;
     private final EntityCache<Classification> classificationCache;
+    private static final Logger logger = LoggerFactory.getLogger(ClassificationService.class);
 
     @Autowired
     public ClassificationService(ClassificationRepository classificationRepository) {
@@ -25,7 +28,7 @@ public class ClassificationService {
     public List<Classification> getClassificationsByArtTitle(String artTitle) {
         List<Classification> classifications = classificationRepository.findByArtTitleContaining(artTitle);
         if (classifications.isEmpty()) {
-            System.out.println("No classifications found for artwork title: " + artTitle);
+            logger.warn("No classifications found for artwork title: {}", artTitle);
         }
         return classifications;
     }
@@ -53,7 +56,6 @@ public class ClassificationService {
         if (classifications.isEmpty()) {
             System.out.println("No classifications found with name containing: " + name);
         } else {
-            // Добавляем найденные классификации в кэш
             classifications.forEach(c -> classificationCache.put(c.getId(), c));
         }
         return classifications;

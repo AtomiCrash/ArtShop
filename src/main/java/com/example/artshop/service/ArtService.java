@@ -15,11 +15,13 @@ import com.example.artshop.service.cache.EntityCache;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 
 @Service
 public class ArtService {
@@ -27,6 +29,7 @@ public class ArtService {
     private final ArtistRepository artistRepository;
     private final EntityCache<Art> artCache;
     private final ClassificationRepository classificationRepository;
+    private static final Logger logger = LoggerFactory.getLogger(ArtService.class);
 
     public static final String ART_NOT_FOUND = "Art with id %d not found";
     public static final String ART_NOT_FOUNDSTRING = "Art with title %s not found";
@@ -45,7 +48,7 @@ public class ArtService {
     public List<Art> getArtsByArtistName(String artistName) {
         List<Art> arts = artRepository.findByArtistsLastNameContainingIgnoreCase(artistName);
         if (arts.isEmpty()) {
-            System.out.println("No artworks found for artist: " + artistName);
+            logger.warn("No artworks found for artist: {}", artistName);
         }
         return arts;
     }
