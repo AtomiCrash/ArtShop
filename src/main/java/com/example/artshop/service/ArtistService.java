@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 public class ArtistService {
     private final ArtistRepository artistRepository;
     private final EntityCache<Artist> artistCache;
-    private static final Logger logger = LoggerFactory.getLogger(ArtistService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ArtistService.class);
 
     public static final String ARTIST_NOT_FOUND = "Artist not found with id: ";
 
@@ -33,7 +33,7 @@ public class ArtistService {
     public List<Artist> getArtistsByArtTitle(String artTitle) {
         List<Artist> artists = artistRepository.findByArtTitleContaining(artTitle);
         if (artists.isEmpty()) {
-            logger.warn("No artists found for artwork title: {}", artTitle);
+            LOGGER.warn("No artists found for artwork title: {}", artTitle);
         }
         return artists;
     }

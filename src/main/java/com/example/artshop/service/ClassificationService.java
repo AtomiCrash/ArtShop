@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClassificationService {
     private final ClassificationRepository classificationRepository;
     private final EntityCache<Classification> classificationCache;
-    private static final Logger logger = LoggerFactory.getLogger(ClassificationService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClassificationService.class);
 
     @Autowired
     public ClassificationService(ClassificationRepository classificationRepository) {
@@ -28,7 +28,7 @@ public class ClassificationService {
     public List<Classification> getClassificationsByArtTitle(String artTitle) {
         List<Classification> classifications = classificationRepository.findByArtTitleContaining(artTitle);
         if (classifications.isEmpty()) {
-            logger.warn("No classifications found for artwork title: {}", artTitle);
+            LOGGER.warn("No classifications found for artwork title: {}", artTitle);
         }
         return classifications;
     }
@@ -54,7 +54,7 @@ public class ClassificationService {
     public List<Classification> getClassificationsByName(String name) {
         List<Classification> classifications = classificationRepository.findByNameContainingIgnoreCase(name);
         if (classifications.isEmpty()) {
-            logger.warn("No classifications found with name containing: {}", name);
+            LOGGER.warn("No classifications found with name containing: {}", name);
         } else {
             classifications.forEach(c -> classificationCache.put(c.getId(), c));
         }

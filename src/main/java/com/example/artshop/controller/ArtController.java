@@ -55,6 +55,24 @@ public class ArtController {
         return ResponseEntity.ok(arts);
     }
 
+    @GetMapping("/by-classificationid")
+    public ResponseEntity<?> getArtsByClassificationId(@RequestParam Integer id) {
+        List<Art> arts = artService.getArtsByClassificationId(id);
+        if (arts.isEmpty()) {
+            return ResponseEntity.ok("No artworks found for classification ID: " + id);
+        }
+        return ResponseEntity.ok(arts);
+    }
+
+    @GetMapping("/by-classification")
+    public ResponseEntity<?> getArtsByClassificationName(@RequestParam String name) {
+        List<Art> arts = artService.getArtsByClassificationName(name);
+        if (arts.isEmpty()) {
+            return ResponseEntity.ok("No artworks found for classification name containing: " + name);
+        }
+        return ResponseEntity.ok(arts);
+    }
+
     @PatchMapping("/{id}")
     public ResponseEntity<ArtDTO> patchArt(
             @PathVariable int id,

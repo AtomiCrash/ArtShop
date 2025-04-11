@@ -22,14 +22,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
 @Service
 public class ArtService {
     private final ArtRepository artRepository;
     private final ArtistRepository artistRepository;
     private final EntityCache<Art> artCache;
     private final ClassificationRepository classificationRepository;
-    private static final Logger logger = LoggerFactory.getLogger(ArtService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ArtService.class);
 
     public static final String ART_NOT_FOUND = "Art with id %d not found";
     public static final String ART_NOT_FOUNDSTRING = "Art with title %s not found";
@@ -48,7 +47,7 @@ public class ArtService {
     public List<Art> getArtsByArtistName(String artistName) {
         List<Art> arts = artRepository.findByArtistsLastNameContainingIgnoreCase(artistName);
         if (arts.isEmpty()) {
-            logger.warn("No artworks found for artist: {}", artistName);
+            LOGGER.warn("No artworks found for artist: {}", artistName);
         }
         return arts;
     }
@@ -227,6 +226,28 @@ public class ArtService {
         Art updatedArt = artRepository.save(art);
         artCache.update(id, updatedArt);
         return updatedArt;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Art> getArtsByClassificationId(Integer classificationId) {
+        List<Art> arts = artRepository.findByClassificationId(classificationId);
+        if (arts.isEmpty()) {
+            System.out.println("No artworks found for classification ID: " + classificationId);
+        } else {
+            arts.forEach(a -> artCache.put(a.getId(), a));
+        }
+        return arts;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Art> getArtsByClassificationName(String classificationName) {
+        List<Art> arts = artRepository.findByClassificationNameContainingIgnoreCase(classificationName);
+        if (arts.isEmpty()) {
+            System.out.println("No artworks found for classification name containing: " + classificationName);
+        } else {
+            arts.forEach(a -> artCache.put(a.getId(), a));
+        }
+        return arts;
     }
 
     @Transactional

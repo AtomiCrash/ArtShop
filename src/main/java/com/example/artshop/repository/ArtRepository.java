@@ -24,4 +24,11 @@ public interface ArtRepository extends JpaRepository<Art, Integer> {
 
     @Query("SELECT a FROM Art a JOIN a.artists ar WHERE LOWER(ar.lastName) LIKE LOWER(concat('%', :artistName, '%'))")
     List<Art> findByArtistsLastNameContainingIgnoreCase(@Param("artistName") String artistName);
+
+    @Query("SELECT a FROM Art a JOIN a.classification c WHERE c.id = :classificationId")
+    List<Art> findByClassificationId(@Param("classificationId") Integer classificationId);
+
+    @Query("SELECT a FROM Art a JOIN a.classification c WHERE LOWER(c.name) " +
+            "LIKE LOWER(concat('%', :classificationName, '%'))")
+    List<Art> findByClassificationNameContainingIgnoreCase(@Param("classificationName") String classificationName);
 }
