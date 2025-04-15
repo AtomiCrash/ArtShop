@@ -196,7 +196,7 @@ public class ArtService implements ArtServiceInterface {
     public List<Art> getArtsByClassificationId(Integer classificationId) {
         List<Art> arts = artRepository.findByClassificationId(classificationId);
         if (arts.isEmpty()) {
-            System.out.println("No artworks found for classification ID: " + classificationId);
+            LOGGER.warn("No artworks found for classification ID: {}", classificationId);
         } else {
             arts.forEach(a -> cacheService.getArtCache().put(a.getId(), a));
         }
@@ -207,7 +207,7 @@ public class ArtService implements ArtServiceInterface {
     public List<Art> getArtsByClassificationName(String classificationName) {
         List<Art> arts = artRepository.findByClassificationNameContainingIgnoreCase(classificationName);
         if (arts.isEmpty()) {
-            System.out.println("No artworks found for classification name containing: " + classificationName);
+            LOGGER.warn("No artworks found for classification name containing: {}", classificationName);
         } else {
             arts.forEach(a -> cacheService.getArtCache().put(a.getId(), a));
         }
