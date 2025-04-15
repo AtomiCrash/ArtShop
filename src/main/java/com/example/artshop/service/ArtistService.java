@@ -16,25 +16,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
-public class ArtistService {
+public class ArtistService implements ArtistServiceInterface {
     private final ArtistRepository artistRepository;
-    private final EntityCache<Artist> artistCache;
+    private final CacheService cacheService;
     private static final Logger LOGGER = LoggerFactory.getLogger(ArtistService.class);
-
     public static final String ARTIST_NOT_FOUND = "Artist not found with id: ";
 
     @Autowired
-    public ArtistService(ArtistRepository artistRepository) {
+    public ArtistService(ArtistRepository artistRepository, CacheService cacheService) {
         this.artistRepository = artistRepository;
-        this.artistCache = new EntityCache<>("Artist");
+        this.cacheService = cacheService;
     }
 
     @Transactional
     public List<Artist> getArtistsByArtTitle(String artTitle) {
         List<Artist> artists = artistRepository.findByArtTitleContaining(artTitle);
-        if (artists.isEmpty()) {
-            LOGGER.warn("No artists found for artwork title: {}", artTitle);
-        }
+        if (artists.isEmpty()) LOGGER.warn("No artists found for artwork title: {}", artTitle);
         return artists;
     }
 
@@ -44,9 +41,8 @@ public class ArtistService {
         artist.setFirstName(artistDTO.getFirstName());
         artist.setMiddleName(artistDTO.getMiddleName());
         artist.setLastName(artistDTO.getLastName());
-
         Artist savedArtist = artistRepository.save(artist);
-        artistCache.put(savedArtist.getId(), savedArtist);
+        cacheService.getArtistCache().put(savedArtist.getId(), savedArtist);
         return savedArtist;
     }
 
@@ -57,44 +53,45 @@ public class ArtistService {
 
     @Transactional
     public Optional<Artist> getArtistById(Integer id) {
-        return artistCache.get(id)
+        return cacheService.getArtistCache().get(id)
                 .map(Optional::of)
                 .orElseGet(() -> {
                     Optional<Artist> artist = artistRepository.findById(id);
-                    artist.ifPresent(a -> artistCache.put(a.getId(), a));
+                    artist.ifPresent(a -> cacheService.getArtistCache().put(a.getId(), a));
                     return artist;
                 });
     }
 
     @Transactional
     public Artist updateArtist(Integer id, ArtistDTO artistDTO) {
-        Artist artist = artistRepository.findById(id)
+        Artist artist = artistRepository.findWithArtsById(id)
                 .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
-
         artist.setFirstName(artistDTO.getFirstName());
         artist.setMiddleName(artistDTO.getMiddleName());
         artist.setLastName(artistDTO.getLastName());
-
         Artist updatedArtist = artistRepository.save(artist);
-        artistCache.update(id, updatedArtist);
+        cacheService.getArtistCache().update(id, updatedArtist);
+        artist.getArts().forEach(art -> cacheService.getArtCache().update(art.getId(), art));
         return updatedArtist;
     }
 
     @Transactional
     public void deleteArtist(Integer id) {
-        Artist artist = artistRepository.findById(id)
+        Artist artist = artistRepository.findWithArtsById(id)
                 .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
-
-        artist.getArts().forEach(art -> art.getArtists().remove(artist));
+        artist.getArts().forEach(art -> {
+            art.getArtists().remove(artist);
+            cacheService.getArtCache().update(art.getId(), art);
+        });
         artistRepository.delete(artist);
-        artistCache.evict(id);
+        cacheService.getArtistCache().evict(id);
     }
 
     @Transactional
     public List<Artist> searchArtists(String firstName, String lastName) {
         if (firstName != null && lastName != null) {
-            return artistRepository.findByFirstNameContainingIgnoreCaseAndLastNameContainingIgnoreCase(firstName,
-                    lastName);
+            return artistRepository
+                    .findByFirstNameContainingIgnoreCaseAndLastNameContainingIgnoreCase(firstName, lastName);
         } else if (firstName != null) {
             return artistRepository.findByFirstNameContainingIgnoreCase(firstName);
         } else if (lastName != null) {
@@ -105,29 +102,23 @@ public class ArtistService {
 
     @Transactional
     public Artist patchArtist(Integer id, ArtistPatchDTO artistPatchDTO) {
-        if (!artistPatchDTO.hasUpdates()) {
-            throw new IllegalArgumentException("No fields to update");
-        }
-
-        Artist artist = artistRepository.findById(id)
+        if (!artistPatchDTO.hasUpdates()) throw new IllegalArgumentException("No fields to update");
+        Artist artist = artistRepository.findWithArtsById(id)
                 .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
-
-        if (artistPatchDTO.getFirstName() != null) {
-            artist.setFirstName(artistPatchDTO.getFirstName());
-        }
-        if (artistPatchDTO.getMiddleName() != null) {
-            artist.setMiddleName(artistPatchDTO.getMiddleName());
-        }
-        if (artistPatchDTO.getLastName() != null) {
-            artist.setLastName(artistPatchDTO.getLastName());
-        }
-
+        if (artistPatchDTO.getFirstName() != null) artist.setFirstName(artistPatchDTO.getFirstName());
+        if (artistPatchDTO.getMiddleName() != null) artist.setMiddleName(artistPatchDTO.getMiddleName());
+        if (artistPatchDTO.getLastName() != null) artist.setLastName(artistPatchDTO.getLastName());
         Artist patchedArtist = artistRepository.save(artist);
-        artistCache.update(id, patchedArtist);
+        cacheService.getArtistCache().update(id, patchedArtist);
+        artist.getArts().forEach(art -> cacheService.getArtCache().update(art.getId(), art));
         return patchedArtist;
     }
 
     public String getCacheInfo() {
-        return artistCache.getCacheInfo();
+        return cacheService.getArtistCache().getCacheInfo();
+    }
+
+    public EntityCache<Artist> getArtistCache() {
+        return cacheService.getArtistCache();
     }
 }

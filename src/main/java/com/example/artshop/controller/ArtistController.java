@@ -4,6 +4,7 @@ import com.example.artshop.dto.ArtistDTO;
 import com.example.artshop.dto.ArtistPatchDTO;
 import com.example.artshop.model.Artist;
 import com.example.artshop.service.ArtistService;
+import com.example.artshop.service.ArtistServiceInterface;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/artist")
 public class ArtistController {
-    private final ArtistService artistService;
+    private final ArtistServiceInterface artistService;
 
     public ArtistController(ArtistService artistService) {
         this.artistService = artistService;

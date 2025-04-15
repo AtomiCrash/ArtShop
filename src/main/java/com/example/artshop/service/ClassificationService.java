@@ -4,7 +4,6 @@ import com.example.artshop.dto.ClassificationDTO;
 import com.example.artshop.dto.ClassificationPatchDTO;
 import com.example.artshop.model.Classification;
 import com.example.artshop.repository.ClassificationRepository;
-import com.example.artshop.service.cache.EntityCache;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,13 +14,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ClassificationService {
     private final ClassificationRepository classificationRepository;
-    private final EntityCache<Classification> classificationCache;
+    private final CacheService cacheService;
     private static final Logger LOGGER = LoggerFactory.getLogger(ClassificationService.class);
 
     @Autowired
-    public ClassificationService(ClassificationRepository classificationRepository) {
+    public ClassificationService(ClassificationRepository classificationRepository,
+                                 CacheService cacheService) {
         this.classificationRepository = classificationRepository;
-        this.classificationCache = new EntityCache<>("Classification");
+        this.cacheService = cacheService;
     }
 
     @Transactional(readOnly = true)
@@ -40,11 +40,11 @@ public class ClassificationService {
 
     @Transactional(readOnly = true)
     public Classification getClassificationById(int id) {
-        return classificationCache.get(id)
+        return cacheService.getClassificationCache().get(id)
                 .orElseGet(() -> {
                     Classification classification = classificationRepository.findById(id);
                     if (classification != null) {
-                        classificationCache.put(id, classification);
+                        cacheService.getClassificationCache().put(id, classification);
                     }
                     return classification;
                 });
@@ -56,7 +56,7 @@ public class ClassificationService {
         if (classifications.isEmpty()) {
             LOGGER.warn("No classifications found with name containing: {}", name);
         } else {
-            classifications.forEach(c -> classificationCache.put(c.getId(), c));
+            classifications.forEach(c -> cacheService.getClassificationCache().put(c.getId(), c));
         }
         return classifications;
     }
@@ -64,7 +64,7 @@ public class ClassificationService {
     @Transactional
     public Classification saveClassification(Classification classification) {
         Classification saved = classificationRepository.save(classification);
-        classificationCache.put(saved.getId(), saved);
+        cacheService.getClassificationCache().put(saved.getId(), saved);
         return saved;
     }
 
@@ -73,28 +73,25 @@ public class ClassificationService {
         if (!patchDTO.hasUpdates()) {
             throw new IllegalArgumentException("No fields to update");
         }
-
         Classification classification = classificationRepository.findById(id);
         if (classification == null) {
             return null;
         }
-
         if (patchDTO.getName() != null) {
             classification.setName(patchDTO.getName());
         }
         if (patchDTO.getDescription() != null) {
             classification.setDescription(patchDTO.getDescription());
         }
-
         Classification updated = classificationRepository.save(classification);
-        classificationCache.update(id, updated);
+        cacheService.getClassificationCache().update(id, updated);
         return updated;
     }
 
     @Transactional
     public void deleteClassification(int id) {
         classificationRepository.deleteById(id);
-        classificationCache.evict(id);
+        cacheService.getClassificationCache().evict(id);
     }
 
     @Transactional
@@ -103,16 +100,14 @@ public class ClassificationService {
         if (classification == null) {
             return null;
         }
-
         classification.setName(classificationDTO.getName());
         classification.setDescription(classificationDTO.getDescription());
-
         Classification updated = classificationRepository.save(classification);
-        classificationCache.update(id, updated);
+        cacheService.getClassificationCache().update(id, updated);
         return updated;
     }
 
     public String getCacheInfo() {
-        return classificationCache.getCacheInfo();
+        return cacheService.getClassificationCache().getCacheInfo();
     }
 }

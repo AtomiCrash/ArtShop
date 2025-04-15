@@ -23,7 +23,7 @@ public class Art {
     private String title;
     private int year;
 
-    @ManyToOne(cascade = CascadeType.MERGE)
+    @ManyToOne
     @JoinColumn(name = "classification_id")
     @JsonManagedReference
     private Classification classification;

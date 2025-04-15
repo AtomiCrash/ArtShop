@@ -4,6 +4,7 @@ import com.example.artshop.dto.ArtDTO;
 import com.example.artshop.dto.ArtPatchDTO;
 import com.example.artshop.model.Art;
 import com.example.artshop.service.ArtService;
+import com.example.artshop.service.ArtServiceInterface;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/art")
 public class ArtController {
-    private final ArtService artService;
+    private final ArtServiceInterface artService;
 
     @Autowired
     public ArtController(ArtService artService) {

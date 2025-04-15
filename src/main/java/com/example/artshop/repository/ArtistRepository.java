@@ -18,8 +18,8 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
 
     List<Artist> findByFirstNameContainingAndLastNameContaining(String firstName, String lastName);
 
-    @Query("SELECT a FROM Artist a WHERE LOWER(a.firstName) LIKE LOWER(concat('%', :query, '%')) OR " +
-            "LOWER(a.lastName) LIKE LOWER(concat('%', :query, '%'))")
+    @Query("SELECT a FROM Artist a WHERE LOWER(a.firstName) LIKE LOWER(concat('%', :query, '%'))" +
+            " OR LOWER(a.lastName) LIKE LOWER(concat('%', :query, '%'))")
     List<Artist> searchByName(@Param("query") String query);
 
     List<Artist> findByFirstNameContainingIgnoreCase(String firstName);
@@ -28,10 +28,10 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
 
     List<Artist> findByFirstNameContainingIgnoreCaseAndLastNameContainingIgnoreCase(String firstName, String lastName);
 
-    @Query("SELECT a FROM Artist a LEFT JOIN FETCH a.arts WHERE a.id = :id")
+    @Query("SELECT DISTINCT a FROM Artist a JOIN FETCH a.arts WHERE a.id = :id")
     Optional<Artist> findWithArtsById(@Param("id") Integer id);
 
-    @Query("SELECT DISTINCT a FROM Artist a JOIN a.arts art WHERE LOWER(art.title) " +
-            "LIKE LOWER(concat('%', :artTitle, '%'))")
+    @Query("SELECT DISTINCT a FROM Artist a JOIN a.arts art WHERE LOWER(art.title)" +
+            " LIKE LOWER(concat('%', :artTitle, '%'))")
     List<Artist> findByArtTitleContaining(@Param("artTitle") String artTitle);
 }
