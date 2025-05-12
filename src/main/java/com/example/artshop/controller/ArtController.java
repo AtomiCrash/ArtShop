@@ -7,8 +7,10 @@ import com.example.artshop.service.ArtService;
 import com.example.artshop.service.ArtServiceInterface;
 import java.util.List;
 
+import com.example.artshop.service.VisitCounterService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,18 +34,37 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Tag(name = "Art Management", description = "Operations related to artworks")
 public class ArtController {
     private final ArtServiceInterface artService;
+    private final VisitCounterService visitCounterService;
 
     @Autowired
-    public ArtController(ArtService artService) {
+    public ArtController(ArtService artService, VisitCounterService visitCounterService) {
         this.artService = artService;
+        this.visitCounterService = visitCounterService;
     }
 
     @Operation(summary = "Get all artworks", description = "Returns a list of all artworks")
     @ApiResponse(responseCode = "200", description = "Successfully retrieved list")
     @GetMapping("/all")
     public ResponseEntity<List<Art>> getAllArts() {
+        visitCounterService.incrementVisitCount();
         List<Art> arts = artService.getAllArts();
         return ResponseEntity.ok(arts);
+    }
+
+    @GetMapping("/visit")
+    public ResponseEntity<Long> getVisitCount() {
+        return ResponseEntity.ok(visitCounterService.getVisitCount());
+    }
+
+    @PostMapping("/bulk")
+    public ResponseEntity<List<Art>> addBulkArts(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "List of exactly 3 ArtDTO objects",
+                    required = true)
+            @RequestBody List<ArtDTO> artDTOs) {
+
+        List<Art> createdArts = artService.addBulkArts(artDTOs);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdArts);
     }
 
     @Operation(summary = "Get artwork by title", description = "Returns a single artwork by its title")

@@ -19,6 +19,8 @@ import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +47,43 @@ public class ArtService implements ArtServiceInterface {
         this.artistRepository = artistRepository;
         this.classificationRepository = classificationRepository;
         this.cacheService = cacheService;
+    }
+
+    @Transactional
+    public List<Art> addBulkArts(List<ArtDTO> artDTOs) {
+        if (artDTOs == null || artDTOs.size() != 3) {
+            throw new ValidationException("Exactly 3 ArtDTO objects required");
+        }
+
+        return artDTOs.stream()
+                .peek(dto -> {
+                    // Валидация каждого DTO
+                    if (dto.getTitle() == null || dto.getTitle().trim().isEmpty()) {
+                        throw new ValidationException("Art title is required for all items");
+                    }
+                })
+                .map(this::addSingleArt) // Используем существующую логику
+                .collect(Collectors.toList());
+    }
+
+    private Art addSingleArt(ArtDTO artDTO) {
+        Art art = new Art();
+        art.setTitle(artDTO.getTitle());
+        art.setYear(artDTO.getYear());
+
+        if (artDTO.getClassification() != null) {
+            Classification classification = processClassification(artDTO.getClassification());
+            art.setClassification(classification);
+        }
+
+        if (artDTO.getArtists() != null && !artDTO.getArtists().isEmpty()) {
+            Set<Artist> artists = artDTO.getArtists().stream()
+                    .map(this::processArtist)
+                    .collect(Collectors.toSet());
+            art.setArtists(artists);
+        }
+
+        return artRepository.save(art);
     }
 
     @Transactional(readOnly = true)

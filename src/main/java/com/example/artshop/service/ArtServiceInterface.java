@@ -30,4 +30,6 @@ public interface ArtServiceInterface {
     String getCacheInfo();
 
     EntityCache<Art> getArtCache();
+
+    List<Art> addBulkArts(List<ArtDTO> artDTOs);
 }
