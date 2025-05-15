@@ -1,8 +1,12 @@
 package com.example.artshop.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 public class ClassificationDTO {
     private int id;
+    @NotBlank(message = "Name is required")
     private String name;
+    @NotBlank(message = "Description is required")
     private String description;
 
     public Integer getId() {

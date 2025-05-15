@@ -2,6 +2,7 @@ package com.example.artshop.service;
 
 import com.example.artshop.dto.ClassificationDTO;
 import com.example.artshop.dto.ClassificationPatchDTO;
+import com.example.artshop.exception.ValidationException;
 import com.example.artshop.model.Classification;
 import com.example.artshop.repository.ClassificationRepository;
 import java.util.List;
@@ -63,6 +64,16 @@ public class ClassificationService {
 
     @Transactional
     public Classification saveClassification(Classification classification) {
+        if (classification == null) {
+            throw new ValidationException("Classification data cannot be null");
+        }
+        if (classification.getName() == null || classification.getName().trim().isEmpty()) {
+            throw new ValidationException("Classification name is required");
+        }
+        if (classification.getDescription() == null || classification.getDescription().trim().isEmpty()) {
+            throw new ValidationException("Classification description is required");
+        }
+
         Classification saved = classificationRepository.save(classification);
         cacheService.getClassificationCache().put(saved.getId(), saved);
         return saved;
@@ -97,9 +108,16 @@ public class ClassificationService {
     @Transactional
     public Classification updateClassification(int id, ClassificationDTO classificationDTO) {
         Classification classification = classificationRepository.findById(id);
-        if (classification == null) {
-            return null;
+        if (classificationDTO == null) {
+            throw new ValidationException("Classification data cannot be null");
         }
+        if (classificationDTO.getName() == null || classificationDTO.getName().trim().isEmpty()) {
+            throw new ValidationException("Classification name is required");
+        }
+        if (classificationDTO.getDescription() == null || classificationDTO.getDescription().trim().isEmpty()) {
+            throw new ValidationException("Classification description is required");
+        }
+        
         classification.setName(classificationDTO.getName());
         classification.setDescription(classificationDTO.getDescription());
         Classification updated = classificationRepository.save(classification);

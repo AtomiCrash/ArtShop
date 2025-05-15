@@ -21,7 +21,7 @@ public class Art {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
     private String title;
-    private int year;
+    private Integer year;
 
     @ManyToOne
     @JoinColumn(name = "classification_id")

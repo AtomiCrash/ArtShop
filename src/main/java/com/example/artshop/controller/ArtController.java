@@ -6,6 +6,8 @@ import com.example.artshop.model.Art;
 import com.example.artshop.service.ArtService;
 import com.example.artshop.service.ArtServiceInterface;
 import java.util.List;
+
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,9 +20,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 @RestController
 @RequestMapping("/api/art")
+@Tag(name = "Art Management", description = "Operations related to artworks")
 public class ArtController {
     private final ArtServiceInterface artService;
 
@@ -29,14 +38,22 @@ public class ArtController {
         this.artService = artService;
     }
 
+    @Operation(summary = "Get all artworks", description = "Returns a list of all artworks")
+    @ApiResponse(responseCode = "200", description = "Successfully retrieved list")
     @GetMapping("/all")
     public ResponseEntity<List<Art>> getAllArts() {
         List<Art> arts = artService.getAllArts();
         return ResponseEntity.ok(arts);
     }
 
+    @Operation(summary = "Get artwork by title", description = "Returns a single artwork by its title")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Artwork found"),
+            @ApiResponse(responseCode = "404", description = "Artwork not found")
+    })
     @GetMapping("/title")
-    public ResponseEntity<Art> getArtByTitle(@RequestParam String title) {
+    public ResponseEntity<Art> getArtByTitle(@Parameter(description = "Title of the artwork to be retrieved")
+                                                 @RequestParam String title) {
         Art art = artService.getArtByTitle(title);
         return ResponseEntity.ok(art);
     }
@@ -104,8 +121,14 @@ public class ArtController {
         return ResponseEntity.ok(updatedArt);
     }
 
+    @Operation(summary = "Add new artwork", description = "Creates a new artwork")
+    @ApiResponse(responseCode = "200", description = "Artwork created successfully")
     @PostMapping("/add")
-    public ResponseEntity<Art> addArt(@RequestBody ArtDTO artDTO) {
+    public ResponseEntity<Art> addArt(@RequestBody @Valid
+                                          @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                                                  description = "Artwork object to be added",
+                                                  required = true)
+                                          ArtDTO artDTO) {
         Art savedArt = artService.addArt(artDTO);
         return ResponseEntity.ok(savedArt);
     }

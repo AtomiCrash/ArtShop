@@ -3,6 +3,7 @@ package com.example.artshop.service;
 import com.example.artshop.dto.ArtistDTO;
 import com.example.artshop.dto.ArtistPatchDTO;
 import com.example.artshop.exception.NotFoundException;
+import com.example.artshop.exception.ValidationException;
 import com.example.artshop.model.Artist;
 import com.example.artshop.repository.ArtistRepository;
 import com.example.artshop.service.cache.EntityCache;
@@ -37,6 +38,23 @@ public class ArtistService implements ArtistServiceInterface {
 
     @Transactional
     public Artist createArtist(ArtistDTO artistDTO) {
+        if (artistDTO == null) {
+            throw new ValidationException("Artist data cannot be null");
+        }
+        if ((artistDTO.getFirstName() == null || artistDTO.getFirstName().trim().isEmpty()) &&
+                (artistDTO.getLastName() == null || artistDTO.getLastName().trim().isEmpty())) {
+            throw new ValidationException("Artist must have at least first name or last name");
+        }
+        if (artistDTO.getFirstName() != null && artistDTO.getFirstName().length() > 60) {
+            throw new ValidationException("First name must be 60 characters or less");
+        }
+        if (artistDTO.getMiddleName() != null && artistDTO.getMiddleName().length() > 60) {
+            throw new ValidationException("Middle name must be 60 characters or less");
+        }
+        if (artistDTO.getLastName() != null && artistDTO.getLastName().length() > 60) {
+            throw new ValidationException("Last name must be 60 characters or less");
+        }
+
         Artist artist = new Artist();
         artist.setFirstName(artistDTO.getFirstName());
         artist.setMiddleName(artistDTO.getMiddleName());

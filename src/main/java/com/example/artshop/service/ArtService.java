@@ -5,6 +5,7 @@ import com.example.artshop.dto.ArtPatchDTO;
 import com.example.artshop.dto.ArtistDTO;
 import com.example.artshop.dto.ClassificationDTO;
 import com.example.artshop.exception.NotFoundException;
+import com.example.artshop.exception.ValidationException;
 import com.example.artshop.model.Art;
 import com.example.artshop.model.Artist;
 import com.example.artshop.model.Classification;
@@ -13,6 +14,8 @@ import com.example.artshop.repository.ArtistRepository;
 import com.example.artshop.repository.ClassificationRepository;
 import com.example.artshop.service.cache.EntityCache;
 import jakarta.persistence.EntityNotFoundException;
+
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -53,15 +56,35 @@ public class ArtService implements ArtServiceInterface {
 
     @Transactional
     public Art addArt(ArtDTO artDTO) {
-        if (artDTO == null) throw new IllegalArgumentException("ArtDTO cannot be null");
+        if (artDTO == null) {
+            throw new ValidationException("Art data cannot be null");
+        }
+        if (artDTO.getTitle() == null || artDTO.getTitle().trim().isEmpty()) {
+            throw new ValidationException("Art title is required");
+        }
+        if (artDTO.getYear() != null) {
+            int currentYear = LocalDate.now().getYear();
+            if (artDTO.getYear() > currentYear) {
+                throw new ValidationException("Year cannot be in the future");
+            }
+        }
+        if (artDTO.getClassification() != null) {
+            validateClassification(artDTO.getClassification());
+        }
+        if (artDTO.getArtists() != null && !artDTO.getArtists().isEmpty()) {
+            validateArtists(artDTO.getArtists());
+        }
+
         Art art = new Art();
         art.setTitle(artDTO.getTitle());
         art.setYear(artDTO.getYear());
+
         if (artDTO.getClassification() != null) {
             Classification classification = processClassification(artDTO.getClassification());
             art.setClassification(classification);
             cacheService.getClassificationCache().update(classification.getId(), classification);
         }
+
         if (artDTO.getArtists() != null && !artDTO.getArtists().isEmpty()) {
             Set<Artist> artists = new HashSet<>();
             for (ArtistDTO artistDTO : artDTO.getArtists()) {
@@ -71,9 +94,37 @@ public class ArtService implements ArtServiceInterface {
             }
             art.setArtists(artists);
         }
+
         Art savedArt = artRepository.save(art);
         cacheService.getArtCache().put(savedArt.getId(), savedArt);
         return savedArt;
+    }
+
+    private void validateClassification(ClassificationDTO classification) {
+        if (classification.getName() == null || classification.getName().trim().isEmpty()) {
+            throw new ValidationException("Classification name is required");
+        }
+        if (classification.getDescription() == null || classification.getDescription().trim().isEmpty()) {
+            throw new ValidationException("Classification description is required");
+        }
+    }
+
+    private void validateArtists(List<ArtistDTO> artists) {
+        for (ArtistDTO artist : artists) {
+            if ((artist.getFirstName() == null || artist.getFirstName().trim().isEmpty()) &&
+                    (artist.getLastName() == null || artist.getLastName().trim().isEmpty())) {
+                throw new ValidationException("Artist must have at least first name or last name");
+            }
+            if (artist.getFirstName() != null && artist.getFirstName().length() > 60) {
+                throw new ValidationException("First name must be 60 characters or less");
+            }
+            if (artist.getMiddleName() != null && artist.getMiddleName().length() > 60) {
+                throw new ValidationException("Middle name must be 60 characters or less");
+            }
+            if (artist.getLastName() != null && artist.getLastName().length() > 60) {
+                throw new ValidationException("Last name must be 60 characters or less");
+            }
+        }
     }
 
     private Classification processClassification(ClassificationDTO classificationDTO) {
@@ -112,6 +163,19 @@ public class ArtService implements ArtServiceInterface {
 
     @Transactional
     public Art patchArt(int id, ArtPatchDTO artPatchDTO) {
+        if (artPatchDTO == null) {
+            throw new ValidationException("ArtPatchDTO cannot be null");
+        }
+        if (!artPatchDTO.hasUpdates()) {
+            throw new ValidationException("No fields to update");
+        }
+        if (artPatchDTO.getTitle() != null && artPatchDTO.getTitle().trim().isEmpty()) {
+            throw new ValidationException("Title cannot be empty");
+        }
+        if (artPatchDTO.getYear() != null && artPatchDTO.getYear() < 1000) {
+            throw new ValidationException("Year must be greater than 1000");
+        }
+
         if (!artPatchDTO.hasUpdates()) throw new IllegalArgumentException("No fields to update");
         Art art = artRepository.findWithArtistsById(id)
                 .orElseThrow(() -> new EntityNotFoundException(ART_NOT_FOUND + id));
