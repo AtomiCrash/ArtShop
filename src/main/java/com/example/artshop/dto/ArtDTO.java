@@ -1,9 +1,9 @@
 package com.example.artshop.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
-import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 
 public class ArtDTO {
@@ -63,7 +63,9 @@ public class ArtDTO {
         this.year = year;
     }
 
-    public List<ArtistDTO> getArtists() {return artists;}
+    public List<ArtistDTO> getArtists() {
+        return artists;
+    }
 
     public void setArtists(List<ArtistDTO> artists) {
         this.artists = artists;

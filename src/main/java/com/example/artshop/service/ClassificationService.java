@@ -1,11 +1,13 @@
 package com.example.artshop.service;
 
+import com.example.artshop.constants.ApplicationConstants;
 import com.example.artshop.dto.ClassificationDTO;
 import com.example.artshop.dto.ClassificationPatchDTO;
 import com.example.artshop.exception.ValidationException;
 import com.example.artshop.model.Classification;
 import com.example.artshop.repository.ClassificationRepository;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +34,34 @@ public class ClassificationService {
             LOGGER.warn("No classifications found for artwork title: {}", artTitle);
         }
         return classifications;
+    }
+
+    @Transactional
+    public List<Classification> addBulkClassifications(List<ClassificationDTO> classificationDTOs) {
+        if (classificationDTOs == null || classificationDTOs.isEmpty()) {
+            throw new ValidationException("Classification list cannot be null or empty");
+        }
+        if (classificationDTOs.size() > ApplicationConstants.MAX_BULK_OPERATION_SIZE) {
+            throw new ValidationException("Cannot add more than " +
+                    ApplicationConstants.MAX_BULK_OPERATION_SIZE + " classifications at once");
+        }
+
+        return classificationDTOs.stream()
+                .peek(dto -> {
+                    if (dto.getName() == null || dto.getName().trim().isEmpty()) {
+                        throw new ValidationException("Classification name is required");
+                    }
+                    if (dto.getDescription() == null || dto.getDescription().trim().isEmpty()) {
+                        throw new ValidationException("Classification description is required");
+                    }
+                })
+                .map(dto -> {
+                    Classification classification = new Classification();
+                    classification.setName(dto.getName());
+                    classification.setDescription(dto.getDescription());
+                    return saveClassification(classification);
+                })
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -107,7 +137,8 @@ public class ClassificationService {
 
     @Transactional
     public Classification updateClassification(int id, ClassificationDTO classificationDTO) {
-        Classification classification = classificationRepository.findById(id);
+        Classification classification;
+        classification = classificationRepository.findById(id);
         if (classificationDTO == null) {
             throw new ValidationException("Classification data cannot be null");
         }

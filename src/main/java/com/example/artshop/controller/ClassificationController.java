@@ -4,8 +4,17 @@ import com.example.artshop.dto.ClassificationDTO;
 import com.example.artshop.dto.ClassificationPatchDTO;
 import com.example.artshop.model.Classification;
 import com.example.artshop.service.ClassificationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,17 +29,29 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/classification")
+@Tag(name = "Classification Management", description = "Operations related to artwork classifications")
 public class ClassificationController {
     @Autowired
     private ClassificationService classificationService;
 
+    @Operation(summary = "Get all classifications", description = "Returns list of all classifications")
+    @ApiResponse(responseCode = "200", description = "Successfully retrieved list",
+            content = @Content(array = @ArraySchema(schema = @Schema(implementation = Classification.class))))
     @GetMapping("/all")
     public List<Classification> getAllClassifications() {
         return classificationService.getAllClassifications();
     }
 
+    @Operation(summary = "Get classification by ID", description = "Returns single classification by ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Classification found",
+                    content = @Content(schema = @Schema(implementation = Classification.class))),
+            @ApiResponse(responseCode = "404", description = "Classification not found")
+    })
     @GetMapping("/{id}")
-    public ResponseEntity<Classification> getClassificationById(@PathVariable int id) {
+    public ResponseEntity<Classification> getClassificationById(
+            @Parameter(description = "ID of classification to be retrieved", required = true)
+            @PathVariable int id) {
         Classification classification = classificationService.getClassificationById(id);
         if (classification != null) {
             return ResponseEntity.ok(classification);
@@ -39,8 +60,18 @@ public class ClassificationController {
         }
     }
 
+    @Operation(summary = "Get classifications by artwork title",
+            description = "Returns classifications of artworks with specified title")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Classifications found",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Classification.class)))),
+            @ApiResponse(responseCode = "200", description = "No classifications found",
+                    content = @Content(schema = @Schema(implementation = String.class)))
+    })
     @GetMapping("/by-art")
-    public ResponseEntity<?> getClassificationsByArtTitle(@RequestParam String artTitle) {
+    public ResponseEntity<?> getClassificationsByArtTitle(
+            @Parameter(description = "Title of artwork to search by", required = true)
+            @RequestParam String artTitle) {
         List<Classification> classifications = classificationService.getClassificationsByArtTitle(artTitle);
         if (classifications.isEmpty()) {
             return ResponseEntity.ok("No classifications found for artwork title: " + artTitle);
@@ -48,8 +79,18 @@ public class ClassificationController {
         return ResponseEntity.ok(classifications);
     }
 
+    @Operation(summary = "Get classifications by name",
+            description = "Returns classifications containing specified name")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Classifications found",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Classification.class)))),
+            @ApiResponse(responseCode = "200", description = "No classifications found",
+                    content = @Content(schema = @Schema(implementation = String.class)))
+    })
     @GetMapping("/name")
-    public ResponseEntity<?> getClassificationsByName(@RequestParam String name) {
+    public ResponseEntity<?> getClassificationsByName(
+            @Parameter(description = "Name to search by", required = true)
+            @RequestParam String name) {
         List<Classification> classifications = classificationService.getClassificationsByName(name);
         if (classifications.isEmpty()) {
             return ResponseEntity.ok("No classifications found with name containing: " + name);
@@ -57,29 +98,74 @@ public class ClassificationController {
         return ResponseEntity.ok(classifications);
     }
 
+    @Operation(summary = "Add multiple classifications",
+            description = "Creates multiple classifications in one request (max 10 items)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Classifications created successfully",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Classification.class)))),
+            @ApiResponse(responseCode = "400", description = "Invalid input (empty list or more than 10 items)")
+    })
+    @PostMapping("/bulk")
+    public ResponseEntity<List<Classification>> addBulkClassifications(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "List of ClassificationDTO objects (max 10 items)",
+                    required = true,
+                    content = @Content(array = @ArraySchema(
+                            schema = @Schema(implementation = ClassificationDTO.class))))
+            @RequestBody List<ClassificationDTO> classificationDTOs) {
+        List<Classification> createdClassifications = classificationService.addBulkClassifications(classificationDTOs);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdClassifications);
+    }
+
+    @Operation(summary = "Create classification", description = "Creates a new classification")
+    @ApiResponse(responseCode = "200", description = "Classification created successfully",
+            content = @Content(schema = @Schema(implementation = Classification.class)))
     @PostMapping("/add")
-    public Classification createClassification(@RequestBody ClassificationDTO classificationDTO) {
+    public Classification createClassification(
+            @RequestBody ClassificationDTO classificationDTO) {
         Classification classification = new Classification();
         classification.setName(classificationDTO.getName());
         classification.setDescription(classificationDTO.getDescription());
         return classificationService.saveClassification(classification);
     }
 
+    @Operation(summary = "Partially update classification",
+            description = "Updates specific fields of a classification")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Classification updated successfully",
+                    content = @Content(schema = @Schema(implementation = Classification.class))),
+            @ApiResponse(responseCode = "404", description = "Classification not found")
+    })
     @PatchMapping("/{id}")
     public ResponseEntity<Classification> patchClassification(
+            @Parameter(description = "ID of classification to be updated", required = true)
             @PathVariable int id,
             @RequestBody ClassificationPatchDTO patchDTO) {
         Classification updated = classificationService.patchClassification(id, patchDTO);
         return ResponseEntity.ok(updated);
     }
 
+    @Operation(summary = "Delete classification", description = "Deletes classification by ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Classification deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "Classification not found")
+    })
     @DeleteMapping("/{id}")
-    public void deleteClassification(@PathVariable int id) {
+    public void deleteClassification(
+            @Parameter(description = "ID of classification to be deleted", required = true)
+            @PathVariable int id) {
         classificationService.deleteClassification(id);
     }
 
+    @Operation(summary = "Update classification", description = "Updates existing classification by ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Classification updated successfully",
+                    content = @Content(schema = @Schema(implementation = Classification.class))),
+            @ApiResponse(responseCode = "404", description = "Classification not found")
+    })
     @PutMapping("/{id}")
     public ResponseEntity<Classification> updateClassification(
+            @Parameter(description = "ID of classification to be updated", required = true)
             @PathVariable int id,
             @RequestBody ClassificationDTO classificationDTO) {
         Classification updated = classificationService.updateClassification(id, classificationDTO);
@@ -90,6 +176,9 @@ public class ClassificationController {
         }
     }
 
+    @Operation(summary = "Get cache info", description = "Returns classification cache statistics")
+    @ApiResponse(responseCode = "200", description = "Cache info retrieved",
+            content = @Content(schema = @Schema(implementation = String.class)))
     @GetMapping("/cache-info")
     public ResponseEntity<String> getClassificationCacheInfo() {
         return ResponseEntity.ok(classificationService.getCacheInfo());

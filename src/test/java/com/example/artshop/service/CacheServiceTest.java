@@ -4,45 +4,38 @@ import com.example.artshop.model.Art;
 import com.example.artshop.model.Artist;
 import com.example.artshop.model.Classification;
 import com.example.artshop.service.cache.EntityCache;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.verify;
 
-@ExtendWith(MockitoExtension.class)
-class CacheServiceTest {
+public class CacheServiceTest {  // ← ВАЖНО: открытие класса
 
-    @InjectMocks
     private CacheService cacheService;
-    
-    @Mock
-    private EntityCache<Artist> artistCache;
-    
-    @Mock
-    private EntityCache<Art> artCache;
-    
-    @Mock
-    private EntityCache<Classification> classificationCache;
 
-    @Test
-    void getArtistCache_ShouldReturnCache() {
-        EntityCache<Artist> result = cacheService.getArtistCache();
-        assertNotNull(result);
+    @BeforeEach
+    void setUp() {
+        cacheService = new CacheService();
     }
 
     @Test
-    void getArtCache_ShouldReturnCache() {
-        EntityCache<Art> result = cacheService.getArtCache();
-        assertNotNull(result);
+    void testGetArtistCache() {
+        EntityCache<Artist> artistCache = cacheService.getArtistCache();
+        assertNotNull(artistCache);
+        assertEquals("Artist", artistCache.getName());
     }
 
     @Test
-    void getClassificationCache_ShouldReturnCache() {
-        EntityCache<Classification> result = cacheService.getClassificationCache();
-        assertNotNull(result);
+    void testGetArtCache() {
+        EntityCache<Art> artCache = cacheService.getArtCache();
+        assertNotNull(artCache);
+        assertEquals("Art", artCache.getName());
+    }
+
+    @Test
+    void testGetClassificationCache() {
+        EntityCache<Classification> classificationCache = cacheService.getClassificationCache();
+        assertNotNull(classificationCache);
+        assertEquals("Classification", classificationCache.getName());
     }
 }

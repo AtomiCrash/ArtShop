@@ -72,4 +72,8 @@ public class EntityCache<T> {
                 .append(id).append(", Entity: ").append(entity).append("\n"));
         return info.toString();
     }
+
+    public String getName() {
+        return entityName;
+    }
 }

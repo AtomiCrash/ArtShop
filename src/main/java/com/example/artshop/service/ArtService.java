@@ -1,5 +1,6 @@
 package com.example.artshop.service;
 
+import com.example.artshop.constants.ApplicationConstants;
 import com.example.artshop.dto.ArtDTO;
 import com.example.artshop.dto.ArtPatchDTO;
 import com.example.artshop.dto.ArtistDTO;
@@ -14,13 +15,11 @@ import com.example.artshop.repository.ArtistRepository;
 import com.example.artshop.repository.ClassificationRepository;
 import com.example.artshop.service.cache.EntityCache;
 import jakarta.persistence.EntityNotFoundException;
-
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,18 +50,21 @@ public class ArtService implements ArtServiceInterface {
 
     @Transactional
     public List<Art> addBulkArts(List<ArtDTO> artDTOs) {
-        if (artDTOs == null || artDTOs.size() != 3) {
-            throw new ValidationException("Exactly 3 ArtDTO objects required");
+        if (artDTOs == null || artDTOs.isEmpty()) {
+            throw new ValidationException("Art list cannot be null or empty");
+        }
+        if (artDTOs.size() > ApplicationConstants.MAX_BULK_OPERATION_SIZE) {
+            throw new ValidationException("Cannot add more than " +
+                    ApplicationConstants.MAX_BULK_OPERATION_SIZE + " artworks at once");
         }
 
         return artDTOs.stream()
                 .peek(dto -> {
-                    // Валидация каждого DTO
                     if (dto.getTitle() == null || dto.getTitle().trim().isEmpty()) {
                         throw new ValidationException("Art title is required for all items");
                     }
                 })
-                .map(this::addSingleArt) // Используем существующую логику
+                .map(this::addSingleArt)
                 .collect(Collectors.toList());
     }
 

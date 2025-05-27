@@ -1,5 +1,6 @@
 package com.example.artshop.service;
 
+import com.example.artshop.constants.ApplicationConstants;
 import com.example.artshop.dto.ArtistDTO;
 import com.example.artshop.dto.ArtistPatchDTO;
 import com.example.artshop.exception.NotFoundException;
@@ -11,6 +12,7 @@ import jakarta.transaction.Transactional;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +29,26 @@ public class ArtistService implements ArtistServiceInterface {
     public ArtistService(ArtistRepository artistRepository, CacheService cacheService) {
         this.artistRepository = artistRepository;
         this.cacheService = cacheService;
+    }
+
+    @Transactional
+    public List<Artist> addBulkArtists(List<ArtistDTO> artistDTOs) {
+        if (artistDTOs == null || artistDTOs.isEmpty()) {
+            throw new ValidationException("Artist list cannot be null or empty");
+        }
+        if (artistDTOs.size() > ApplicationConstants.MAX_BULK_OPERATION_SIZE) {
+            throw new ValidationException("Cannot add more than " +
+                    ApplicationConstants.MAX_BULK_OPERATION_SIZE + " artists at once");
+        }
+        return artistDTOs.stream()
+                .peek(dto -> {
+                    if ((dto.getFirstName() == null || dto.getFirstName().trim().isEmpty()) &&
+                            (dto.getLastName() == null || dto.getLastName().trim().isEmpty())) {
+                        throw new ValidationException("Artist must have at least first name or last name");
+                    }
+                })
+                .map(this::createArtist)
+                .collect(Collectors.toList());
     }
 
     @Transactional

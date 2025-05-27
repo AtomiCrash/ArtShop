@@ -1,19 +1,31 @@
 package com.example.artshop.service;
 
-import lombok.Synchronized;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.stereotype.Service;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class VisitCounterService {
-    private final AtomicLong visitCount = new AtomicLong(0);
+    private final Map<String, AtomicInteger> endpointCounters = new ConcurrentHashMap<>();
+    private final AtomicInteger totalVisits = new AtomicInteger(0);
 
-    @Synchronized
-    public void incrementVisitCount() {
-        visitCount.incrementAndGet();
+    public void recordVisit(String endpoint) {
+        endpointCounters.computeIfAbsent(endpoint, k -> new AtomicInteger()).incrementAndGet();
+        totalVisits.incrementAndGet();
     }
 
-    public long getVisitCount() {
-        return visitCount.get();
+    public int getEndpointVisits(String endpoint) {
+        return endpointCounters.getOrDefault(endpoint, new AtomicInteger()).get();
+    }
+
+    public int getTotalVisits() {
+        return totalVisits.get();
+    }
+
+    public Map<String, Integer> getAllVisits() {
+        Map<String, Integer> result = new ConcurrentHashMap<>();
+        endpointCounters.forEach((key, value) -> result.put(key, value.get()));
+        return result;
     }
 }

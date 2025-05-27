@@ -27,4 +27,6 @@ public interface ArtistServiceInterface {
     String getCacheInfo();
 
     EntityCache<Artist> getArtistCache();
+
+    List<Artist> addBulkArtists(List<ArtistDTO> artistDTOs);
 }
