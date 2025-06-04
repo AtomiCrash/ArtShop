@@ -20,7 +20,6 @@ public class LogService {
         Path logDir = Paths.get(logPath).toAbsolutePath();
         List<String> result = new ArrayList<>();
 
-        // Добавляем заголовок
         result.add(String.format("=== Logs for %s %02d:00-%02d:59 ===\n", date, hour, hour));
 
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(logDir, "*.log")) {
@@ -34,7 +33,7 @@ public class LogService {
             }
         }
 
-        if (result.size() == 1) { // Если только заголовок
+        if (result.size() == 1) {
             result.add("No log entries found for this period");
         }
 
@@ -43,11 +42,10 @@ public class LogService {
 
     private boolean isInTimeRange(String logLine, int targetHour) {
         try {
-            // Формат: 2025-05-14T09:27:49.432+03:00
             String[] parts = logLine.split("T");
             if (parts.length < 2) return false;
 
-            String timePart = parts[1].split("\\.")[0]; // Берем только часы:минуты:секунды
+            String timePart = parts[1].split("\\.")[0];
             int logHour = Integer.parseInt(timePart.substring(0, 2));
             return logHour == targetHour;
         } catch (Exception e) {

@@ -2,128 +2,122 @@ package com.example.artshop.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 class LogServiceTest {
 
-    @InjectMocks
     private LogService logService;
 
-    @Mock
-    private Path logDir;
-
-    @Mock
-    private DirectoryStream<Path> directoryStream;
-
-    @Mock
-    private Path logFile;
-
-    private LocalDate date;
+    @TempDir
+    Path tempDir;
 
     @BeforeEach
-    void setUp() throws NoSuchFieldException, IllegalAccessException {
-        date = LocalDate.of(2025, 5, 22);
+    void setUp() {
         logService = new LogService();
-        // Use reflection to set private logPath for testing
-        java.lang.reflect.Field field = LogService.class.getDeclaredField("logPath");
-        field.setAccessible(true);
-        field.set(logService, "/logs");
+        ReflectionTestUtils.setField(logService, "logPath", tempDir.toString());
     }
 
     @Test
-    void extractLogsForPeriod_ValidLogs_ReturnsFilteredLogs() throws IOException {
-        String logLine = "2025-05-22T09:27:49.432+03:00 INFO Some log message";
-        List<String> logLines = Arrays.asList(logLine, "2025-05-22T10:00:00.000+03:00 INFO Other log");
+    void extractLogsForPeriod_shouldReturnNoEntriesWhenNoLogsExist() throws IOException {
+        LocalDate date = LocalDate.of(2023, 1, 1);
+        int hour = 10;
 
-        when(logDir.toAbsolutePath()).thenReturn(logDir);
-        when(Files.newDirectoryStream(eq(logDir), eq("*.log"))).thenReturn(directoryStream);
-        when(directoryStream.iterator()).thenReturn(Arrays.asList(logFile).iterator());
-        when(Files.readAllLines(logFile)).thenReturn(logLines);
-
-        List<String> result = logService.extractLogsForPeriod(date, 9);
+        List<String> result = logService.extractLogsForPeriod(date, hour);
 
         assertEquals(2, result.size());
-        assertEquals("=== Logs for 2025-05-22 09:00-09:59 ===\n", result.get(0));
-        assertEquals(logLine, result.get(1));
-    }
-
-    @Test
-    void extractLogsForPeriod_NoLogs_ReturnsNoEntriesMessage() throws IOException {
-        when(logDir.toAbsolutePath()).thenReturn(logDir);
-        when(Files.newDirectoryStream(eq(logDir), eq("*.log"))).thenReturn(directoryStream);
-        when(directoryStream.iterator()).thenReturn(Collections.<Path>emptyList().iterator());
-
-        List<String> result = logService.extractLogsForPeriod(date, 9);
-
-        assertEquals(2, result.size());
-        assertEquals("=== Logs for 2025-05-22 09:00-09:59 ===\n", result.get(0));
+        assertEquals(String.format("=== Logs for %s %02d:00-%02d:59 ===\n", date, hour, hour), result.get(0));
         assertEquals("No log entries found for this period", result.get(1));
     }
 
     @Test
-    void extractLogsForPeriod_InvalidLogFormat_SkipsInvalidLines() throws IOException {
-        List<String> logLines = Arrays.asList("Invalid log line", "2025-05-22T09:27:49.432+03:00 INFO Valid log");
+    void extractLogsForPeriod_shouldFilterLogsByDateAndHour() throws IOException {
+        LocalDate date = LocalDate.of(2023, 1, 1);
+        int hour = 10;
 
-        when(logDir.toAbsolutePath()).thenReturn(logDir);
-        when(Files.newDirectoryStream(eq(logDir), eq("*.log"))).thenReturn(directoryStream);
-        when(directoryStream.iterator()).thenReturn(Arrays.asList(logFile).iterator());
-        when(Files.readAllLines(logFile)).thenReturn(logLines);
+        Path logFile = tempDir.resolve("test.log");
+        Files.write(logFile, List.of(
+                "2023-01-01T10:15:30.123 INFO - Test message 1",
+                "2023-01-01T10:59:59.999 INFO - Test message 2",
+                "2023-01-01T11:00:00.000 INFO - Should not appear",
+                "2023-01-02T10:00:00.000 INFO - Wrong date",
+                "Invalid log line",
+                "2023-01-01T09:59:59.999 INFO - Wrong hour"
+        ));
 
-        List<String> result = logService.extractLogsForPeriod(date, 9);
+        List<String> result = logService.extractLogsForPeriod(date, hour);
+
+        assertEquals(3, result.size());
+        assertTrue(result.get(1).contains("Test message 1"));
+        assertTrue(result.get(2).contains("Test message 2"));
+    }
+
+    @Test
+    void extractLogsForPeriod_shouldHandleIOException() {
+        try (MockedStatic<Files> filesMock = mockStatic(Files.class)) {
+            filesMock.when(() -> Files.newDirectoryStream(any(Path.class), any(String.class)))
+                    .thenThrow(new IOException("Test exception"));
+
+            LocalDate date = LocalDate.of(2023, 1, 1);
+            int hour = 10;
+
+            assertThrows(IOException.class, () -> {
+                logService.extractLogsForPeriod(date, hour);
+            });
+        }
+    }
+
+    @Test
+    void extractLogsForPeriod_shouldHandleMultipleLogFiles() throws IOException {
+        LocalDate date = LocalDate.of(2023, 1, 1);
+        int hour = 10;
+
+        Path logFile1 = tempDir.resolve("test1.log");
+        Path logFile2 = tempDir.resolve("test2.log");
+
+        Files.write(logFile1, List.of(
+                "2023-01-01T10:15:30.123 INFO - Message from file 1"
+        ));
+
+        Files.write(logFile2, List.of(
+                "2023-01-01T10:30:45.456 INFO - Message from file 2"
+        ));
+
+        List<String> result = logService.extractLogsForPeriod(date, hour);
+
+        assertEquals(3, result.size());
+        assertTrue(result.stream().anyMatch(line -> line.contains("file 1")));
+        assertTrue(result.stream().anyMatch(line -> line.contains("file 2")));
+    }
+
+    @Test
+    void extractLogsForPeriod_shouldHandleEmptyLines() throws IOException {
+        LocalDate date = LocalDate.of(2023, 1, 1);
+        int hour = 10;
+
+        Path logFile = tempDir.resolve("test.log");
+        Files.write(logFile, List.of(
+                "",
+                "2023-01-01T10:15:30.123 INFO - Valid message",
+                "   ",
+                ""
+        ));
+
+        List<String> result = logService.extractLogsForPeriod(date, hour);
 
         assertEquals(2, result.size());
-        assertEquals("=== Logs for 2025-05-22 09:00-09:59 ===\n", result.get(0));
-        assertEquals("2025-05-22T09:27:49.432+03:00 INFO Valid log", result.get(1));
-    }
-
-    @Test
-    void extractLogsForPeriod_IOException_PropagatesException() throws IOException {
-        when(logDir.toAbsolutePath()).thenReturn(logDir);
-        when(Files.newDirectoryStream(eq(logDir), eq("*.log"))).thenThrow(new IOException("File error"));
-
-        IOException exception = assertThrows(IOException.class, () -> logService.extractLogsForPeriod(date, 9));
-        assertEquals("File error", exception.getMessage());
-    }
-
-    @Test
-    void isInTimeRange_ValidTime_ReturnsTrue() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        String logLine = "2025-05-22T09:27:49.432+03:00 INFO Message";
-        java.lang.reflect.Method method = LogService.class.getDeclaredMethod("isInTimeRange", String.class, int.class);
-        method.setAccessible(true);
-        boolean result = (boolean) method.invoke(logService, logLine, 9);
-        assertTrue(result);
-    }
-
-    @Test
-    void isInTimeRange_DifferentHour_ReturnsFalse() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        String logLine = "2025-05-22T10:27:49.432+03:00 INFO Message";
-        java.lang.reflect.Method method = LogService.class.getDeclaredMethod("isInTimeRange", String.class, int.class);
-        method.setAccessible(true);
-        boolean result = (boolean) method.invoke(logService, logLine, 9);
-        assertFalse(result);
-    }
-
-    @Test
-    void isInTimeRange_InvalidFormat_ReturnsFalse() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        String logLine = "Invalid log line";
-        java.lang.reflect.Method method = LogService.class.getDeclaredMethod("isInTimeRange", String.class, int.class);
-        method.setAccessible(true);
-        boolean result = (boolean) method.invoke(logService, logLine, 9);
-        assertFalse(result);
+        assertTrue(result.get(1).contains("Valid message"));
     }
 }

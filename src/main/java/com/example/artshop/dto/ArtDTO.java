@@ -4,15 +4,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
 import java.util.List;
 
 public class ArtDTO {
     private Integer id;
     @Schema(description = "Title of the artwork", example = "Starry Night", required = true)
-    @NotBlank(message = "Title is required")
     private String title;
     @Schema(description = "Year when artwork was created", example = "1889")
-    @Max(value = 2025, message = "Year cannot be in the future")
     private Integer year;
     @Schema(description = "List of artists who created the artwork")
     @Valid

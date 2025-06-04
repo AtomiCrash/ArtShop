@@ -1,11 +1,14 @@
 package com.example.artshop.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 public class ClassificationDTO {
     private int id;
-    @NotBlank(message = "Name is required")
+    @Size(max = 60, message = "Classification name must be 60 characters or less")
+    @NotBlank(message = "Classification name is required")
     private String name;
+    @Size(max = 120, message = "Description must be 60 characters or less")
     @NotBlank(message = "Description is required")
     private String description;
 

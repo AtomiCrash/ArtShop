@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -102,6 +103,9 @@ public class ArtService implements ArtServiceInterface {
         }
         if (artDTO.getTitle() == null || artDTO.getTitle().trim().isEmpty()) {
             throw new ValidationException("Art title is required");
+        }
+        if (artDTO.getTitle() != null && artDTO.getTitle().length() > 60) {
+            throw new ValidationException("Title must be 60 characters or less");
         }
         if (artDTO.getYear() != null) {
             int currentYear = LocalDate.now().getYear();

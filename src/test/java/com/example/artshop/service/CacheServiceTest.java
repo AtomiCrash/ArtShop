@@ -4,38 +4,31 @@ import com.example.artshop.model.Art;
 import com.example.artshop.model.Artist;
 import com.example.artshop.model.Classification;
 import com.example.artshop.service.cache.EntityCache;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.*;
 
-public class CacheServiceTest {  // ← ВАЖНО: открытие класса
+class CacheServiceTest {
 
-    private CacheService cacheService;
+    private CacheService cacheService = new CacheService();
 
-    @BeforeEach
-    void setUp() {
-        cacheService = new CacheService();
+    @Test
+    void testGetArtistCache_ReturnsArtistCache() {
+        EntityCache<Artist> cache = cacheService.getArtistCache();
+        assertNotNull(cache);
+        assertEquals("Artist", cache.getName());
     }
 
     @Test
-    void testGetArtistCache() {
-        EntityCache<Artist> artistCache = cacheService.getArtistCache();
-        assertNotNull(artistCache);
-        assertEquals("Artist", artistCache.getName());
+    void testGetArtCache_ReturnsArtCache() {
+        EntityCache<Art> cache = cacheService.getArtCache();
+        assertNotNull(cache);
+        assertEquals("Art", cache.getName());
     }
 
     @Test
-    void testGetArtCache() {
-        EntityCache<Art> artCache = cacheService.getArtCache();
-        assertNotNull(artCache);
-        assertEquals("Art", artCache.getName());
-    }
-
-    @Test
-    void testGetClassificationCache() {
-        EntityCache<Classification> classificationCache = cacheService.getClassificationCache();
-        assertNotNull(classificationCache);
-        assertEquals("Classification", classificationCache.getName());
+    void testGetClassificationCache_ReturnsClassificationCache() {
+        EntityCache<Classification> cache = cacheService.getClassificationCache();
+        assertNotNull(cache);
+        assertEquals("Classification", cache.getName());
     }
 }

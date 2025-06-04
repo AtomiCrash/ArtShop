@@ -63,9 +63,11 @@ public class ArtistService implements ArtistServiceInterface {
         if (artistDTO == null) {
             throw new ValidationException("Artist data cannot be null");
         }
-        if ((artistDTO.getFirstName() == null || artistDTO.getFirstName().trim().isEmpty()) &&
-                (artistDTO.getLastName() == null || artistDTO.getLastName().trim().isEmpty())) {
-            throw new ValidationException("Artist must have at least first name or last name");
+        if (artistDTO.getFirstName() == null || artistDTO.getFirstName().trim().isEmpty()) {
+            throw new ValidationException("Artist must have at least first name");
+        }
+        if (artistDTO.getLastName() == null || artistDTO.getLastName().trim().isEmpty()) {
+            throw new ValidationException("Artist must have at least last name");
         }
         if (artistDTO.getFirstName() != null && artistDTO.getFirstName().length() > 60) {
             throw new ValidationException("First name must be 60 characters or less");
@@ -117,7 +119,7 @@ public class ArtistService implements ArtistServiceInterface {
 
     @Transactional
     public void deleteArtist(Integer id) {
-        Artist artist = artistRepository.findWithArtsById(id)
+        Artist artist = artistRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
         artist.getArts().forEach(art -> {
             art.getArtists().remove(artist);

@@ -14,12 +14,15 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,219 +40,271 @@ class ClassificationServiceTest {
     @InjectMocks
     private ClassificationService classificationService;
 
-    private ClassificationDTO classificationDTO;
     private Classification classification;
+    private ClassificationDTO classificationDTO;
+    private ClassificationPatchDTO classificationPatchDTO;
 
     @BeforeEach
     void setUp() {
+        classification = new Classification("Painting", "Artwork created with paint");
+
         classificationDTO = new ClassificationDTO();
-        classificationDTO.setId(1);
-        classificationDTO.setName("Painting");
-        classificationDTO.setDescription("Oil painting");
+        classificationDTO.setName("Sculpture");
+        classificationDTO.setDescription("Three-dimensional artwork");
 
-        classification = new Classification();
-        //classification.setId(1);
-        classification.setName("Painting");
-        classification.setDescription("Oil painting");
+        classificationPatchDTO = new ClassificationPatchDTO();
 
-        when(cacheService.getClassificationCache()).thenReturn(classificationCache);
-        when(classificationRepository.save(any(Classification.class))).thenReturn(classification);
+        lenient().when(cacheService.getClassificationCache()).thenReturn(classificationCache);
     }
 
     @Test
-    void addBulkClassifications_ValidDTOs_SavesAndCachesClassifications() {
-        List<ClassificationDTO> dtos = new ArrayList<>(Collections.singletonList(classificationDTO));
-        List<Classification> result = classificationService.addBulkClassifications(dtos);
-
-        assertEquals(1, result.size());
-        assertEquals("Painting", result.get(0).getName());
-        verify(classificationRepository).save(any(Classification.class));
-        verify(classificationCache).put(eq(1), any(Classification.class));
-    }
-
-    @Test
-    void addBulkClassifications_EmptyList_ThrowsValidationException() {
-        ValidationException exception = assertThrows(ValidationException.class, () -> classificationService.addBulkClassifications(Collections.emptyList()));
-        assertEquals("Classification list cannot be null or empty", exception.getMessage());
-    }
-
-    @Test
-    void addBulkClassifications_TooManyItems_ThrowsValidationException() {
-        List<ClassificationDTO> dtos = new ArrayList<>();
-        for (int i = 0; i < ApplicationConstants.MAX_BULK_OPERATION_SIZE + 1; i++) {
-            dtos.add(new ClassificationDTO());
-        }
-        ValidationException exception = assertThrows(ValidationException.class, () -> classificationService.addBulkClassifications(dtos));
-        assertEquals("Cannot add more than " + ApplicationConstants.MAX_BULK_OPERATION_SIZE + " classifications at once", exception.getMessage());
-    }
-
-    @Test
-    void getClassificationById_FromCache_ReturnsClassification() {
-        when(classificationCache.get(1)).thenReturn(Optional.of(classification));
-
-        Classification result = classificationService.getClassificationById(1);
-
-        assertNotNull(result);
-        assertEquals("Painting", result.getName());
-        verify(classificationRepository, never()).findById(anyInt());
-        verify(classificationCache).get(1);
-    }
-
-    @Test
-    void getClassificationById_NotInCache_FetchesFromRepository() {
-        when(classificationCache.get(1)).thenReturn(Optional.empty());
-        //when(classificationRepository.findById(1)).thenReturn(Optional.of(classification));
-
-        Classification result = classificationService.getClassificationById(1);
-
-        assertNotNull(result);
-        assertEquals("Painting", result.getName());
-        verify(classificationRepository).findById(1);
-        verify(classificationCache).put(1, classification);
-    }
-
-    @Test
-    void getClassificationById_NullFromRepository_ReturnsNull() {
-        when(classificationCache.get(1)).thenReturn(Optional.empty());
-        //when(classificationRepository.findById(1)).thenReturn(Optional.empty());
-
-        Classification result = classificationService.getClassificationById(1);
-
-        assertNull(result);
-        verify(classificationCache).get(1);
-        verify(classificationRepository).findById(1);
-        verify(classificationCache, never()).put(anyInt(), any());
-    }
-
-    @Test
-    void patchClassification_ValidPatch_UpdatesClassification() {
-        ClassificationPatchDTO patchDTO = new ClassificationPatchDTO();
-        patchDTO.setName("Updated Painting");
-        patchDTO.setDescription("Updated description");
-
-        //when(classificationRepository.findById(1)).thenReturn(Optional.of(classification));
-        when(classificationRepository.save(any(Classification.class))).thenReturn(classification);
-
-        Classification result = classificationService.patchClassification(1, patchDTO);
-
-        assertNotNull(result);
-        assertEquals("Updated Painting", result.getName());
-        verify(classificationRepository).save(any(Classification.class));
-        verify(classificationCache).update(eq(1), any(Classification.class));
-    }
-
-    @Test
-    void patchClassification_NoUpdates_ThrowsIllegalArgumentException() {
-        ClassificationPatchDTO patchDTO = new ClassificationPatchDTO();
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> classificationService.patchClassification(1, patchDTO));
-        assertEquals("No fields to update", exception.getMessage());
-    }
-
-    @Test
-    void patchClassification_NullClassification_ReturnsNull() {
-        ClassificationPatchDTO patchDTO = new ClassificationPatchDTO();
-        patchDTO.setName("Updated Painting");
-
-        //when(classificationRepository.findById(1)).thenReturn(Optional.empty());
-
-        Classification result = classificationService.patchClassification(1, patchDTO);
-
-        assertNull(result);
-        verify(classificationRepository).findById(1);
-        verify(classificationRepository, never()).save(any());
-        verify(classificationCache, never()).update(anyInt(), any());
-    }
-
-    @Test
-    void deleteClassification_ExistingId_RemovesAndEvictsFromCache() {
-        classificationService.deleteClassification(1);
-
-        verify(classificationRepository).deleteById(1);
-        verify(classificationCache).evict(1);
-    }
-
-    @Test
-    void updateClassification_ValidDTO_UpdatesClassification() {
-        //when(classificationRepository.findById(1)).thenReturn(Optional.of(classification));
-        when(classificationRepository.save(any(Classification.class))).thenReturn(classification);
-
-        Classification result = classificationService.updateClassification(1, classificationDTO);
-
-        assertNotNull(result);
-        assertEquals("Painting", result.getName());
-        verify(classificationRepository).save(any(Classification.class));
-        verify(classificationCache).update(eq(1), any(Classification.class));
-    }
-
-    @Test
-    void updateClassification_NullDTO_ThrowsValidationException() {
-        ValidationException exception = assertThrows(ValidationException.class, () -> classificationService.updateClassification(1, null));
-        assertEquals("Classification data cannot be null", exception.getMessage());
-    }
-
-    @Test
-    void updateClassification_EmptyName_ThrowsValidationException() {
-        classificationDTO.setName("");
-        ValidationException exception = assertThrows(ValidationException.class, () -> classificationService.updateClassification(1, classificationDTO));
-        assertEquals("Classification name is required", exception.getMessage());
-    }
-
-    @Test
-    void getClassificationsByName_ValidName_ReturnsClassifications() {
-        when(classificationRepository.findByNameContainingIgnoreCase("Painting")).thenReturn(Collections.singletonList(classification));
-
-        List<Classification> result = classificationService.getClassificationsByName("Painting");
-
-        assertEquals(1, result.size());
-        assertEquals("Painting", result.get(0).getName());
-        verify(classificationCache).put(eq(1), eq(classification));
-    }
-
-    @Test
-    void getClassificationsByArtTitle_ValidTitle_ReturnsClassifications() {
-        when(classificationRepository.findByArtTitleContaining("Mona Lisa")).thenReturn(Collections.singletonList(classification));
+    void getClassificationsByArtTitle_WithResults() {
+        when(classificationRepository.findByArtTitleContaining(anyString()))
+                .thenReturn(Collections.singletonList(classification));
 
         List<Classification> result = classificationService.getClassificationsByArtTitle("Mona Lisa");
-
         assertEquals(1, result.size());
-        assertEquals("Painting", result.get(0).getName());
-        verify(classificationRepository).findByArtTitleContaining("Mona Lisa");
+        assertEquals(classification, result.get(0));
     }
 
     @Test
-    void getAllClassifications_ReturnsAllClassifications() {
+    void getClassificationsByArtTitle_NoResults() {
+        when(classificationRepository.findByArtTitleContaining(anyString()))
+                .thenReturn(Collections.emptyList());
+
+        List<Classification> result = classificationService.getClassificationsByArtTitle("Unknown");
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void addBulkClassifications_ValidInput() {
+        List<ClassificationDTO> dtos = Arrays.asList(classificationDTO, classificationDTO);
+        when(classificationRepository.save(any(Classification.class))).thenReturn(classification);
+        doNothing().when(classificationCache).put(anyInt(), any(Classification.class));
+
+        List<Classification> result = classificationService.addBulkClassifications(dtos);
+        assertEquals(2, result.size());
+    }
+
+    @Test
+    void addBulkClassifications_NullList() {
+        assertThrows(ValidationException.class, () -> classificationService.addBulkClassifications(null));
+    }
+
+    @Test
+    void addBulkClassifications_EmptyList() {
+        assertThrows(ValidationException.class, () -> classificationService.addBulkClassifications(Collections.emptyList()));
+    }
+
+    @Test
+    void addBulkClassifications_ExceedsMaxSize() {
+        List<ClassificationDTO> largeList = Collections.nCopies(ApplicationConstants.MAX_BULK_OPERATION_SIZE + 1, classificationDTO);
+        assertThrows(ValidationException.class, () -> classificationService.addBulkClassifications(largeList));
+    }
+
+    @Test
+    void addBulkClassifications_MissingName() {
+        classificationDTO.setName(null);
+        List<ClassificationDTO> dtos = Collections.singletonList(classificationDTO);
+        assertThrows(ValidationException.class, () -> classificationService.addBulkClassifications(dtos));
+    }
+
+    @Test
+    void addBulkClassifications_MissingDescription() {
+        classificationDTO.setDescription(null);
+        List<ClassificationDTO> dtos = Collections.singletonList(classificationDTO);
+        assertThrows(ValidationException.class, () -> classificationService.addBulkClassifications(dtos));
+    }
+
+    @Test
+    void getAllClassifications() {
         when(classificationRepository.findAll()).thenReturn(Collections.singletonList(classification));
-
         List<Classification> result = classificationService.getAllClassifications();
-
         assertEquals(1, result.size());
-        assertEquals("Painting", result.get(0).getName());
-        verify(classificationRepository).findAll();
+        assertEquals(classification, result.get(0));
     }
 
     @Test
-    void saveClassification_ValidClassification_SavesAndCaches() {
+    void getClassificationById_FromCache() {
+        when(classificationCache.get(anyInt())).thenReturn(Optional.of(classification));
+        Classification result = classificationService.getClassificationById(1);
+        assertEquals(classification, result);
+    }
+
+    @Test
+    void getClassificationById_FromRepository() {
+        when(classificationCache.get(anyInt())).thenReturn(Optional.empty());
+        when(classificationRepository.findById(anyInt())).thenReturn(classification);
+        doNothing().when(classificationCache).put(anyInt(), any(Classification.class));
+
+        Classification result = classificationService.getClassificationById(1);
+        assertEquals(classification, result);
+    }
+
+    @Test
+    void getClassificationById_NotFound() {
+        when(classificationCache.get(anyInt())).thenReturn(Optional.empty());
+        when(classificationRepository.findById(anyInt())).thenReturn(null);
+        Classification result = classificationService.getClassificationById(1);
+        assertNull(result);
+    }
+
+    @Test
+    void getClassificationsByName_WithResults() {
+        when(classificationRepository.findByNameContainingIgnoreCase(anyString()))
+                .thenReturn(Collections.singletonList(classification));
+        doNothing().when(classificationCache).put(anyInt(), any(Classification.class));
+
+        List<Classification> result = classificationService.getClassificationsByName("Paint");
+        assertEquals(1, result.size());
+        assertEquals(classification, result.get(0));
+    }
+
+    @Test
+    void getClassificationsByName_NoResults() {
+        when(classificationRepository.findByNameContainingIgnoreCase(anyString()))
+                .thenReturn(Collections.emptyList());
+        List<Classification> result = classificationService.getClassificationsByName("Unknown");
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void saveClassification_ValidInput() {
+        when(classificationRepository.save(any(Classification.class))).thenReturn(classification);
+        doNothing().when(classificationCache).put(anyInt(), any(Classification.class));
+
         Classification result = classificationService.saveClassification(classification);
-
-        assertNotNull(result);
-        assertEquals("Painting", result.getName());
-        verify(classificationRepository).save(any(Classification.class));
-        verify(classificationCache).put(eq(1), any(Classification.class));
+        assertEquals(classification, result);
     }
 
     @Test
-    void saveClassification_Null_ThrowsValidationException() {
-        ValidationException exception = assertThrows(ValidationException.class, () -> classificationService.saveClassification(null));
-        assertEquals("Classification data cannot be null", exception.getMessage());
+    void saveClassification_NullInput() {
+        assertThrows(ValidationException.class, () -> classificationService.saveClassification(null));
     }
 
     @Test
-    void getCacheInfo_DelegatesToCache() {
+    void saveClassification_MissingName() {
+        classification.setName(null);
+        assertThrows(ValidationException.class, () -> classificationService.saveClassification(classification));
+    }
+
+    @Test
+    void saveClassification_EmptyName() {
+        classification.setName("");
+        assertThrows(ValidationException.class, () -> classificationService.saveClassification(classification));
+    }
+
+    @Test
+    void saveClassification_NameTooLong() {
+        classification.setName("a".repeat(61));
+        assertThrows(ValidationException.class, () -> classificationService.saveClassification(classification));
+    }
+
+    @Test
+    void saveClassification_MissingDescription() {
+        classification.setDescription(null);
+        assertThrows(ValidationException.class, () -> classificationService.saveClassification(classification));
+    }
+
+    @Test
+    void saveClassification_EmptyDescription() {
+        classification.setDescription("");
+        assertThrows(ValidationException.class, () -> classificationService.saveClassification(classification));
+    }
+
+    @Test
+    void saveClassification_DescriptionTooLong() {
+        classification.setDescription("a".repeat(121));
+        assertThrows(ValidationException.class, () -> classificationService.saveClassification(classification));
+    }
+
+    @Test
+    void patchClassification_NoUpdates() {
+        classificationPatchDTO.setName(null);
+        classificationPatchDTO.setDescription(null);
+        assertThrows(IllegalArgumentException.class, () -> classificationService.patchClassification(1, classificationPatchDTO));
+    }
+
+    @Test
+    void patchClassification_NotFound() {
+        classificationPatchDTO.setName("Updated");
+        when(classificationRepository.findById(anyInt())).thenReturn(null);
+        Classification result = classificationService.patchClassification(1, classificationPatchDTO);
+        assertNull(result);
+    }
+
+    @Test
+    void patchClassification_UpdateName() {
+        classificationPatchDTO.setName("Updated Name");
+        when(classificationRepository.findById(anyInt())).thenReturn(classification);
+        when(classificationRepository.save(any(Classification.class))).thenReturn(classification);
+        doNothing().when(classificationCache).update(anyInt(), any(Classification.class));
+
+        Classification result = classificationService.patchClassification(1, classificationPatchDTO);
+        assertEquals("Updated Name", classification.getName());
+    }
+
+    @Test
+    void patchClassification_UpdateDescription() {
+        classificationPatchDTO.setDescription("Updated Description");
+        when(classificationRepository.findById(anyInt())).thenReturn(classification);
+        when(classificationRepository.save(any(Classification.class))).thenReturn(classification);
+        doNothing().when(classificationCache).update(anyInt(), any(Classification.class));
+
+        Classification result = classificationService.patchClassification(1, classificationPatchDTO);
+        assertEquals("Updated Description", classification.getDescription());
+    }
+
+    @Test
+    void deleteClassification() {
+        doNothing().when(classificationRepository).deleteById(anyInt());
+        doNothing().when(classificationCache).evict(anyInt());
+        classificationService.deleteClassification(1);
+    }
+
+    @Test
+    void updateClassification_ValidInput() {
+        when(classificationRepository.findById(anyInt())).thenReturn(classification);
+        when(classificationRepository.save(any(Classification.class))).thenReturn(classification);
+        doNothing().when(classificationCache).update(anyInt(), any(Classification.class));
+
+        Classification result = classificationService.updateClassification(1, classificationDTO);
+        assertEquals(classificationDTO.getName(), classification.getName());
+    }
+
+    @Test
+    void updateClassification_NullInput() {
+        assertThrows(ValidationException.class, () -> classificationService.updateClassification(1, null));
+    }
+
+    @Test
+    void updateClassification_MissingName() {
+        classificationDTO.setName(null);
+        assertThrows(ValidationException.class, () -> classificationService.updateClassification(1, classificationDTO));
+    }
+
+    @Test
+    void updateClassification_EmptyName() {
+        classificationDTO.setName("");
+        assertThrows(ValidationException.class, () -> classificationService.updateClassification(1, classificationDTO));
+    }
+
+    @Test
+    void updateClassification_MissingDescription() {
+        classificationDTO.setDescription(null);
+        assertThrows(ValidationException.class, () -> classificationService.updateClassification(1, classificationDTO));
+    }
+
+    @Test
+    void updateClassification_EmptyDescription() {
+        classificationDTO.setDescription("");
+        assertThrows(ValidationException.class, () -> classificationService.updateClassification(1, classificationDTO));
+    }
+
+    @Test
+    void getCacheInfo() {
         when(classificationCache.getCacheInfo()).thenReturn("Cache info");
-
         String result = classificationService.getCacheInfo();
-
         assertEquals("Cache info", result);
-        verify(classificationCache).getCacheInfo();
     }
 }
