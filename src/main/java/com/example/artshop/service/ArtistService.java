@@ -79,6 +79,15 @@ public class ArtistService implements ArtistServiceInterface {
             throw new ValidationException("Last name must be 60 characters or less");
         }
 
+        Optional<Artist> existingArtist = artistRepository.findByFirstNameAndLastName(
+                artistDTO.getFirstName(),
+                artistDTO.getLastName()
+        );
+
+        if (existingArtist.isPresent()) {
+            return existingArtist.get();
+        }
+
         Artist artist = new Artist();
         artist.setFirstName(artistDTO.getFirstName());
         artist.setMiddleName(artistDTO.getMiddleName());
@@ -106,8 +115,10 @@ public class ArtistService implements ArtistServiceInterface {
 
     @Transactional
     public Artist updateArtist(Integer id, ArtistDTO artistDTO) {
-        Artist artist = artistRepository.findWithArtsById(id)
-                .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
+        Artist artist = cacheService.getArtistCache().get(id)
+                .orElseGet(() -> artistRepository.findWithArtsById(id)
+                        .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id)));
+
         artist.setFirstName(artistDTO.getFirstName());
         artist.setMiddleName(artistDTO.getMiddleName());
         artist.setLastName(artistDTO.getLastName());

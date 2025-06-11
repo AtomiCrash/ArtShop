@@ -15,7 +15,7 @@ public interface ArtServiceInterface {
 
     List<Art> getAllArts();
 
-    Art getArtById(int id);
+    ArtDTO getArtById(int id);
 
     Art updateArt(int id, ArtDTO artDTO);
 

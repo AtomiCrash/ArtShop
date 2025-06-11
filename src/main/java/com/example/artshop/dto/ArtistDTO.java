@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+
 public class ArtistDTO {
     private Integer id;
     @Schema(description = "First name of the artist", example = "Vincent")
@@ -15,6 +17,7 @@ public class ArtistDTO {
     @Schema(description = "Last name of the artist", example = "van Gogh", required = true)
     @Size(max = 60, message = "Last name must be 60 characters or less")
     private String lastName;
+    private List<ArtDTO> works;
 
     public Integer getId() {
         return id;
