@@ -11,7 +11,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ArtRepository extends JpaRepository<Art, Integer> {
-    Optional<Art> findByTitle(String title);
 
     List<Art> findByTitleContainingIgnoreCase(String title);
 
@@ -31,4 +30,13 @@ public interface ArtRepository extends JpaRepository<Art, Integer> {
     @Query("SELECT a FROM Art a JOIN a.classification c WHERE LOWER(c.name) " +
             "LIKE LOWER(concat('%', :classificationName, '%'))")
     List<Art> findByClassificationNameContainingIgnoreCase(@Param("classificationName") String classificationName);
+
+    @Query("SELECT DISTINCT a FROM Art a LEFT JOIN FETCH a.artists LEFT JOIN FETCH a.classification WHERE a.id = :id")
+    Optional<Art> findWithArtistsAndClassificationById(@Param("id") Integer id);
+
+    @Query("SELECT a FROM Art a WHERE a.title = :title")
+    Optional<Art> findByTitle(@Param("title") String title);
+
+    @Query("SELECT DISTINCT a FROM Art a LEFT JOIN FETCH a.artists LEFT JOIN FETCH a.classification")
+    List<Art> findAllWithArtistsAndClassification();
 }

@@ -2,6 +2,8 @@ package com.example.artshop.controller;
 
 import com.example.artshop.dto.ArtDTO;
 import com.example.artshop.dto.ArtPatchDTO;
+import com.example.artshop.dto.ArtistDTO;
+import com.example.artshop.dto.ClassificationDTO;
 import com.example.artshop.model.Art;
 import com.example.artshop.service.ArtService;
 import com.example.artshop.service.ArtServiceInterface;
@@ -15,6 +17,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -176,12 +180,13 @@ public class ArtController {
             @ApiResponse(responseCode = "404", description = "Artwork not found")
     })
     @PutMapping("/{id}")
-    public ResponseEntity<Art> updateArt(
+    public ResponseEntity<ArtDTO> updateArt(
             @Parameter(description = "ID of the artwork to be updated", required = true)
             @PathVariable int id,
             @RequestBody ArtDTO artDTO) {
         Art updatedArt = artService.updateArt(id, artDTO);
-        return ResponseEntity.ok(updatedArt);
+        ArtDTO responseDto = convertToDto(updatedArt);
+        return ResponseEntity.ok(responseDto);
     }
 
     @Operation(summary = "Add new artwork", description = "Creates a new artwork")
@@ -224,10 +229,29 @@ public class ArtController {
         ArtDTO dto = new ArtDTO();
         dto.setTitle(art.getTitle());
         dto.setYear(art.getYear());
+
         if (art.getClassification() != null) {
-            dto.setClassificationId(art.getClassification().getId());
-            dto.setClassificationName(art.getClassification().getName());
+            ClassificationDTO classificationDTO = new ClassificationDTO();
+            classificationDTO.setId(art.getClassification().getId());
+            classificationDTO.setName(art.getClassification().getName());
+            classificationDTO.setDescription(art.getClassification().getDescription());
+            dto.setClassification(classificationDTO);
         }
+
+        if (art.getArtists() != null) {
+            List<ArtistDTO> artistDTOs = art.getArtists().stream()
+                    .map(artist -> {
+                        ArtistDTO artistDTO = new ArtistDTO();
+                        artistDTO.setId(artist.getId());
+                        artistDTO.setFirstName(artist.getFirstName());
+                        artistDTO.setMiddleName(artist.getMiddleName());
+                        artistDTO.setLastName(artist.getLastName());
+                        return artistDTO;
+                    })
+                    .collect(Collectors.toList());
+            dto.setArtists(artistDTOs);
+        }
+
         return dto;
     }
 }

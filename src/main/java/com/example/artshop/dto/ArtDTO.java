@@ -2,9 +2,6 @@ package com.example.artshop.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -20,24 +17,6 @@ public class ArtDTO {
     @Schema(description = "Classification of the artwork")
     @Valid
     private ClassificationDTO classification;
-    private int classificationId;
-    private String classificationName;
-
-    public int getClassificationId() {
-        return classificationId;
-    }
-
-    public void setClassificationId(int classificationId) {
-        this.classificationId = classificationId;
-    }
-
-    public String getClassificationName() {
-        return classificationName;
-    }
-
-    public void setClassificationName(String classificationName) {
-        this.classificationName = classificationName;
-    }
 
     public ClassificationDTO getClassification() {
         return classification;
