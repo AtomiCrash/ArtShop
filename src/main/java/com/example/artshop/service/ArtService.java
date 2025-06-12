@@ -18,7 +18,6 @@ import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -126,41 +125,24 @@ public class ArtService implements ArtServiceInterface {
         art.setYear(artDTO.getYear());
 
         if (artDTO.getClassification() != null) {
-            Classification classification = classificationRepository
-                    .findByName(artDTO.getClassification().getName());
-
-            if (classification == null) {
-                classification = new Classification();
-                classification.setName(artDTO.getClassification().getName());
-                classification.setDescription(artDTO.getClassification().getDescription());
-                classification = classificationRepository.save(classification);
-            }
+            Classification classification = processClassification(artDTO.getClassification());
             art.setClassification(classification);
+            cacheService.getClassificationCache().update(classification.getId(), classification);
         }
 
         if (artDTO.getArtists() != null && !artDTO.getArtists().isEmpty()) {
             Set<Artist> artists = new HashSet<>();
             for (ArtistDTO artistDTO : artDTO.getArtists()) {
-                Optional<Artist> existingArtist = artistRepository.findByFirstNameAndLastName(
-                        artistDTO.getFirstName(),
-                        artistDTO.getLastName());
-
-                Artist artist;
-                if (existingArtist.isPresent()) {
-                    artist = existingArtist.get();
-                } else {
-                    artist = new Artist();
-                    artist.setFirstName(artistDTO.getFirstName());
-                    artist.setMiddleName(artistDTO.getMiddleName());
-                    artist.setLastName(artistDTO.getLastName());
-                    artist = artistRepository.save(artist);
-                }
+                Artist artist = processArtist(artistDTO);
                 artists.add(artist);
+                cacheService.getArtistCache().update(artist.getId(), artist);
             }
             art.setArtists(artists);
         }
 
-        return artRepository.save(art);
+        Art savedArt = artRepository.save(art);
+        cacheService.getArtCache().put(savedArt.getId(), savedArt);
+        return savedArt;
     }
 
     private void validateClassification(ClassificationDTO classification) {
@@ -192,54 +174,36 @@ public class ArtService implements ArtServiceInterface {
 
     private Classification processClassification(ClassificationDTO classificationDTO) {
         if (classificationDTO == null) return null;
-
-        if (classificationDTO.getName() == null) {
-            return null;
+        Classification classification = null;
+        if (classificationDTO.getId() != null) {
+            classification = classificationRepository.findById(classificationDTO.getId()).orElse(null);
         }
-
-        if (classificationDTO.getId() == null) {
-            Classification existing = classificationRepository.findByName(classificationDTO.getName());
-            if (existing != null) {
-                return existing;
-            }
+        if (classification == null && classificationDTO.getName() != null) {
+            classification = classificationRepository.findByName(classificationDTO.getName());
         }
-        else {
-            Classification existing = classificationRepository.findById(classificationDTO.getId()).orElse(null);
-            if (existing != null) {
-                return existing;
-            }
+        if (classification == null) {
+            classification = new Classification();
+            classification.setName(classificationDTO.getName());
+            classification.setDescription(classificationDTO.getDescription());
+            classification = classificationRepository.save(classification);
         }
-
-        Classification classification = new Classification();
-        classification.setName(classificationDTO.getName());
-        classification.setDescription(classificationDTO.getDescription());
-        return classificationRepository.save(classification);
+        return classification;
     }
 
     private Artist processArtist(ArtistDTO artistDTO) {
         if (artistDTO.getLastName() == null || artistDTO.getLastName().trim().isEmpty()) {
             throw new IllegalArgumentException("Artist last name is required");
         }
-
         if (artistDTO.getId() != null) {
             return artistRepository.findById(artistDTO.getId())
                     .orElseThrow(() -> new NotFoundException(ART_NOT_FOUNDARTIST + artistDTO.getId()));
+        } else {
+            Artist artist = new Artist();
+            artist.setFirstName(artistDTO.getFirstName());
+            artist.setLastName(artistDTO.getLastName());
+            artist.setMiddleName(artistDTO.getMiddleName());
+            return artistRepository.save(artist);
         }
-
-        Optional<Artist> existingArtist = artistRepository.findByFirstNameAndLastName(
-                artistDTO.getFirstName(),
-                artistDTO.getLastName()
-        );
-
-        if (existingArtist.isPresent()) {
-            return existingArtist.orElse(null);
-        }
-
-        Artist artist = new Artist();
-        artist.setFirstName(artistDTO.getFirstName());
-        artist.setMiddleName(artistDTO.getMiddleName());
-        artist.setLastName(artistDTO.getLastName());
-        return artistRepository.save(artist);
     }
 
     @Transactional
@@ -294,93 +258,46 @@ public class ArtService implements ArtServiceInterface {
     }
 
     @Transactional(readOnly = true)
-    public ArtDTO getArtById(int id) {
+    public Art getArtById(int id) {
         return cacheService.getArtCache().get(id)
-                .map(this::convertToDto)
                 .orElseGet(() -> {
-                    Art art = artRepository.findWithArtistsById(id)
+                    Art art = artRepository.findById(id)
                             .orElseThrow(() -> new NotFoundException(String.format(ART_NOT_FOUND, id)));
-                    ArtDTO artDto = convertToDto(art);
                     cacheService.getArtCache().put(id, art);
-                    return artDto;
+                    return art;
                 });
-    }
-    private ArtDTO convertToDto(Art art) {
-        ArtDTO dto = new ArtDTO();
-        dto.setTitle(art.getTitle());
-        dto.setYear(art.getYear());
-
-        if (art.getClassification() != null) {
-            ClassificationDTO classificationDTO = new ClassificationDTO();
-            classificationDTO.setId(art.getClassification().getId());
-            classificationDTO.setName(art.getClassification().getName());
-            classificationDTO.setDescription(art.getClassification().getDescription());
-            dto.setClassification(classificationDTO);
-        }
-
-        if (art.getArtists() != null) {
-            List<ArtistDTO> artistDTOs = art.getArtists().stream()
-                    .map(artist -> {
-                        ArtistDTO artistDTO = new ArtistDTO();
-                        artistDTO.setId(artist.getId());
-                        artistDTO.setFirstName(artist.getFirstName());
-                        artistDTO.setMiddleName(artist.getMiddleName());
-                        artistDTO.setLastName(artist.getLastName());
-                        return artistDTO;
-                    })
-                    .collect(Collectors.toList());
-            dto.setArtists(artistDTOs);
-        }
-
-        return dto;
     }
 
     @Transactional
     public Art updateArt(int id, ArtDTO artDTO) {
         Art art = artRepository.findWithArtistsById(id)
                 .orElseThrow(() -> new NotFoundException(ART_NOT_FOUND + id));
-
         art.setTitle(artDTO.getTitle());
         art.setYear(artDTO.getYear());
-
-        if (artDTO.getClassification() != null) {
-            Optional<Classification> existingClassification = Optional.ofNullable(classificationRepository
-                    .findByName(artDTO.getClassification().getName()));
-
-            Classification classification = existingClassification.orElseGet(() -> {
-                Classification newClassification = new Classification();
-                newClassification.setName(artDTO.getClassification().getName());
-                newClassification.setDescription(artDTO.getClassification().getDescription());
-                return classificationRepository.save(newClassification);
-            });
-
-            art.setClassification(classification);
-            cacheService.getClassificationCache().update(classification.getId(), classification);
-        }
-
         if (artDTO.getArtists() != null) {
+            art.getArtists().forEach(artist -> artist.getArts().remove(art));
+            art.getArtists().clear();
             Set<Artist> updatedArtists = new HashSet<>();
             for (ArtistDTO artistDTO : artDTO.getArtists()) {
-                Artist artist = artistRepository.findByFirstNameAndLastName(
-                                artistDTO.getFirstName(),
-                                artistDTO.getLastName())
-                        .orElseGet(() -> {
-                            Artist newArtist = new Artist();
-                            newArtist.setFirstName(artistDTO.getFirstName());
-                            newArtist.setMiddleName(artistDTO.getMiddleName());
-                            newArtist.setLastName(artistDTO.getLastName());
-                            return artistRepository.save(newArtist);
-                        });
-
+                Artist artist;
+                if (artistDTO.getId() != null) {
+                    artist = artistRepository.findById(artistDTO.getId())
+                            .orElseThrow(() -> new NotFoundException(ART_NOT_FOUNDARTIST + artistDTO.getId()));
+                } else {
+                    artist = new Artist();
+                    artist.setFirstName(artistDTO.getFirstName());
+                    artist.setMiddleName(artistDTO.getMiddleName());
+                    artist.setLastName(artistDTO.getLastName());
+                    artist = artistRepository.save(artist);
+                }
                 updatedArtists.add(artist);
+                artist.getArts().add(art);
                 cacheService.getArtistCache().update(artist.getId(), artist);
             }
             art.setArtists(updatedArtists);
         }
-
         Art updatedArt = artRepository.save(art);
         cacheService.getArtCache().update(id, updatedArt);
-
         return updatedArt;
     }
 

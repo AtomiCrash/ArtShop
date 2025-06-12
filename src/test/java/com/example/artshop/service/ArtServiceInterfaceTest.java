@@ -194,7 +194,7 @@ class ArtServiceInterfaceTest {
     void getArtById_ShouldReturnArtFromCache() {
         lenient().when(artCache.get(anyInt())).thenReturn(Optional.of(art));
 
-        ArtDTO result = artService.getArtById(1);
+        Art result = artService.getArtById(1);
 
         assertEquals("Starry Night", result.getTitle());
         verify(artRepository, never()).findById(anyInt());
@@ -205,7 +205,7 @@ class ArtServiceInterfaceTest {
         lenient().when(artCache.get(anyInt())).thenReturn(Optional.empty());
         lenient().when(artRepository.findById(anyInt())).thenReturn(Optional.of(art));
 
-        ArtDTO result = artService.getArtById(1);
+        Art result = artService.getArtById(1);
 
         assertEquals("Starry Night", result.getTitle());
         verify(artCache).put(anyInt(), any(Art.class));

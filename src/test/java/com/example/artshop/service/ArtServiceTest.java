@@ -534,7 +534,7 @@ class ArtServiceTest {
         lenient().when(cacheService.getArtCache()).thenReturn(artCache);
         lenient().when(artCache.get(anyInt())).thenReturn(Optional.of(expectedArt));
 
-        ArtDTO result = artService.getArtById(1);
+        Art result = artService.getArtById(1);
 
         assertEquals("Cached Art", result.getTitle());
     }
@@ -546,7 +546,7 @@ class ArtServiceTest {
         lenient().when(artCache.get(anyInt())).thenReturn(Optional.empty());
         lenient().when(artRepository.findById(anyInt())).thenReturn(Optional.of(expectedArt));
 
-        ArtDTO result = artService.getArtById(1);
+        Art result = artService.getArtById(1);
 
         assertEquals("Repository Art", result.getTitle());
     }
