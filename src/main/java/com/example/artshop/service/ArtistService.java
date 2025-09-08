@@ -13,6 +13,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -90,7 +92,23 @@ public class ArtistService implements ArtistServiceInterface {
 
     @Transactional
     public List<Artist> getAllArtists() {
-        return artistRepository.findAll();
+        List<Artist> artists = artistRepository.findAllWithArts();
+        System.out.println("Artists loaded: " + artists.size());
+        artists.forEach(artist -> {
+            System.out.println("Artist " + artist.getId() + " has " + (artist.getArts() != null ? artist.getArts().size() : "null") + " arts");
+            if (artist.getArts() != null) {
+                artist.getArts().forEach(art -> {
+                    System.out.println("Art: " + art.getTitle());
+                    if (Hibernate.isInitialized(art.getClassification()) && art.getClassification() != null) {
+                        System.out.println("Classification: " + art.getClassification().getName());
+                    } else {
+                        Hibernate.initialize(art.getClassification());
+                    }
+                });
+            }
+        });
+        artists.forEach(artist -> cacheService.getArtistCache().put(artist.getId(), artist));
+        return artists;
     }
 
     @Transactional

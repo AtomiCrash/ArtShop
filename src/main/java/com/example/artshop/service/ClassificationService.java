@@ -66,7 +66,16 @@ public class ClassificationService {
 
     @Transactional(readOnly = true)
     public List<Classification> getAllClassifications() {
-        return classificationRepository.findAll();
+        List<Classification> classifications = classificationRepository.findAllWithArts();
+        System.out.println("Classifications loaded: " + classifications.size());
+        classifications.forEach(classification -> {
+            System.out.println("Classification " + classification.getId() + " has " + (classification.getArts() != null ? classification.getArts().size() : "null") + " arts");
+            if (classification.getArts() != null) {
+                classification.getArts().forEach(art -> System.out.println("Art: " + art.getTitle()));
+            }
+        });
+        classifications.forEach(c -> cacheService.getClassificationCache().put(c.getId(), c));
+        return classifications;
     }
 
     @Transactional(readOnly = true)

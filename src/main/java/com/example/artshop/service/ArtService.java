@@ -291,6 +291,13 @@ public class ArtService implements ArtServiceInterface {
     @Transactional(readOnly = true)
     public List<Art> getAllArts() {
         List<Art> arts = artRepository.findAllWithArtistsAndClassification();
+        System.out.println("Arts loaded: " + arts.size());
+        arts.forEach(art -> {
+            System.out.println("Art " + art.getId() + " has " + (art.getArtists() != null ? art.getArtists().size() : "null") + " artists");
+            if (art.getArtists() != null) {
+                art.getArtists().forEach(artist -> System.out.println("Artist: " + artist.getLastName()));
+            }
+        });
         arts.forEach(art -> cacheService.getArtCache().put(art.getId(), art));
         return arts;
     }

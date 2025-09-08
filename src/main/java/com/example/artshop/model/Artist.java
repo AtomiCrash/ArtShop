@@ -1,13 +1,10 @@
 package com.example.artshop.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.ManyToMany;
-import jakarta.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import jakarta.persistence.*;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -26,8 +23,8 @@ public class Artist {
     @Column(name = "last_name", nullable = false)
     private String lastName;
 
-    @ManyToMany(mappedBy = "artists")
-    @JsonIgnore
+    @ManyToMany(mappedBy = "artists", fetch = FetchType.LAZY)
+    @JsonBackReference(value = "artist-arts")
     private Set<Art> arts = new HashSet<>();
 
     public Artist() {}
