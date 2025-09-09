@@ -1,41 +1,47 @@
 package com.example.artshop.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "Arts")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@Table(name = "art")
 public class Art {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Integer id;
+
+    @Column(name = "title", nullable = false, length = 255)
     private String title;
+
+    @Column(name = "year")
     private Integer year;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "classification_id")
-    @JsonManagedReference(value = "art-classification")
-    private Classification classification;
-
-    @ManyToMany(fetch = FetchType.LAZY, cascade = CascadeType.MERGE)
+    @ManyToMany(fetch = FetchType.EAGER, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinTable(
             name = "art_artist",
             joinColumns = @JoinColumn(name = "art_id"),
-            inverseJoinColumns = @JoinColumn(name = "artist_id"))
-    @JsonManagedReference(value = "artist-arts")
+            inverseJoinColumns = @JoinColumn(name = "artist_id")
+    )
     private Set<Artist> artists = new HashSet<>();
 
-    public int getId() {
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinColumn(name = "classification_id")
+    private Classification classification;
+
+    public Art() {}
+
+    public Art(String title, Integer year) {
+        this.title = title;
+        this.year = year;
+    }
+
+    public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -55,6 +61,14 @@ public class Art {
         this.year = year;
     }
 
+    public Set<Artist> getArtists() {
+        return artists;
+    }
+
+    public void setArtists(Set<Artist> artists) {
+        this.artists = artists;
+    }
+
     public Classification getClassification() {
         return classification;
     }
@@ -63,11 +77,14 @@ public class Art {
         this.classification = classification;
     }
 
-    public Set<Artist> getArtists() {
-        return artists;
-    }
-
-    public void setArtists(Set<Artist> artists) {
-        this.artists = artists;
+    @Override
+    public String toString() {
+        return "Art{" +
+                "id=" + id +
+                ", title='" + title + '\'' +
+                ", year=" + year +
+                ", artistsCount=" + (artists != null ? artists.size() : 0) +
+                ", classification=" + (classification != null ? classification.getName() : "null") +
+                '}';
     }
 }

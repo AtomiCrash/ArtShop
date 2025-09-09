@@ -1,26 +1,25 @@
 package com.example.artshop.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-
 import java.util.HashSet;
 import java.util.Set;
-import lombok.Data;
 
-@Data
 @Entity
-@Table(name = "classifications")
+@Table(name = "classification")
 public class Classification {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
+    private Integer id;
 
+    @Column(name = "name", nullable = false, length = 100)
     private String name;
+
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
-    @OneToMany(mappedBy = "classification", fetch = FetchType.LAZY)
-    @JsonManagedReference(value = "art-classification")
+    @OneToMany(mappedBy = "classification")
+    @JsonBackReference
     private Set<Art> arts = new HashSet<>();
 
     public Classification() {}
@@ -30,8 +29,12 @@ public class Classification {
         this.description = description;
     }
 
-    public int getId() {
+    public Integer getId() {
         return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
     }
 
     public String getName() {
@@ -56,5 +59,15 @@ public class Classification {
 
     public void setArts(Set<Art> arts) {
         this.arts = arts;
+    }
+
+    @Override
+    public String toString() {
+        return "Classification{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", description='" + description + '\'' +
+                ", artsCount=" + (arts != null ? arts.size() : 0) +
+                '}';
     }
 }

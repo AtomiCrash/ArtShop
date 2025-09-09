@@ -2,28 +2,35 @@ package com.example.artshop.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 
 public class ArtDTO {
     private Integer id;
+
     @Schema(description = "Title of the artwork", example = "Starry Night", required = true)
+    @NotBlank(message = "Title is required")
     private String title;
+
     @Schema(description = "Year when artwork was created", example = "1889")
+    @Max(value = 2025, message = "Year cannot be in the future")
     private Integer year;
+
     @Schema(description = "List of artists who created the artwork")
     @Valid
     private List<ArtistDTO> artists;
+
     @Schema(description = "Classification of the artwork")
     @Valid
     private ClassificationDTO classification;
 
-    public ClassificationDTO getClassification() {
-        return classification;
+    public Integer getId() {
+        return id;
     }
 
-    public void setClassification(ClassificationDTO classification) {
-        this.classification = classification;
+    public void setId(Integer id) {
+        this.id = id;
     }
 
     public String getTitle() {
@@ -38,7 +45,7 @@ public class ArtDTO {
         return year;
     }
 
-    public void setYear(int year) {
+    public void setYear(Integer year) {
         this.year = year;
     }
 
@@ -49,5 +56,12 @@ public class ArtDTO {
     public void setArtists(List<ArtistDTO> artists) {
         this.artists = artists;
     }
-}
 
+    public ClassificationDTO getClassification() {
+        return classification;
+    }
+
+    public void setClassification(ClassificationDTO classification) {
+        this.classification = classification;
+    }
+}

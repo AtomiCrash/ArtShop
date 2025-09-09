@@ -6,12 +6,15 @@ import jakarta.validation.constraints.Size;
 
 public class ArtistDTO {
     private Integer id;
+
     @Schema(description = "First name of the artist", example = "Vincent")
     @Size(max = 60, message = "First name must be 60 characters or less")
     private String firstName;
+
     @Schema(description = "Middle name of the artist", example = "Willem")
     @Size(max = 60, message = "Middle name must be 60 characters or less")
     private String middleName;
+
     @Schema(description = "Last name of the artist", example = "van Gogh", required = true)
     @Size(max = 60, message = "Last name must be 60 characters or less")
     private String lastName;

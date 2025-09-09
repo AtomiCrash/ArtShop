@@ -109,16 +109,8 @@ public class ClassificationService {
         if (classification.getName() == null || classification.getName().trim().isEmpty()) {
             throw new ValidationException("Classification name is required");
         }
-        if (classification.getName() != null && classification.getName().length() > 60) {
-            throw new ValidationException("Classification name must be 60 characters or less");
-        }
-
         if (classification.getDescription() == null || classification.getDescription().trim().isEmpty()) {
             throw new ValidationException("Classification description is required");
-        }
-
-        if (classification.getDescription() != null && classification.getDescription().length() > 120) {
-            throw new ValidationException("Classification Description must be 120 characters or less");
         }
 
         Classification saved = classificationRepository.save(classification);

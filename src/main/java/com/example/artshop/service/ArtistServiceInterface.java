@@ -8,25 +8,25 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ArtistServiceInterface {
-    List<Artist> getArtistsByArtTitle(String artTitle);
+    List<ArtistDTO> getArtistsByArtTitle(String artTitle);
 
-    Artist createArtist(ArtistDTO artistDTO);
+    ArtistDTO createArtist(ArtistDTO artistDTO);
 
-    List<Artist> getAllArtists();
+    List<ArtistDTO> getAllArtists();
 
-    Optional<Artist> getArtistById(Integer id);
+    Optional<ArtistDTO> getArtistById(Integer id);
 
-    Artist updateArtist(Integer id, ArtistDTO artistDTO);
+    ArtistDTO updateArtist(Integer id, ArtistDTO artistDTO);
 
     void deleteArtist(Integer id);
 
-    List<Artist> searchArtists(String firstName, String lastName);
+    List<ArtistDTO> searchArtists(String firstName, String lastName);
 
-    Artist patchArtist(Integer id, ArtistPatchDTO artistPatchDTO);
+    ArtistDTO patchArtist(Integer id, ArtistPatchDTO artistPatchDTO);
 
     String getCacheInfo();
 
     EntityCache<Artist> getArtistCache();
 
-    List<Artist> addBulkArtists(List<ArtistDTO> artistDTOs);
+    List<ArtistDTO> addBulkArtists(List<ArtistDTO> artistDTOs);
 }

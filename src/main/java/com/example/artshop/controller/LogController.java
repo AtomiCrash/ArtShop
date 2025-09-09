@@ -62,7 +62,7 @@ public class LogController {
 
             executor.execute(() -> {
                 try {
-                    //Thread.sleep(20000);
+                    Thread.sleep(20000);
 
                     List<String> logs = logService.extractLogsForPeriod(date, hour);
                     

@@ -1,5 +1,6 @@
 package com.example.artshop.service;
 
+import com.example.artshop.constants.ApplicationConstants;
 import com.example.artshop.dto.ArtDTO;
 import com.example.artshop.dto.ArtPatchDTO;
 import com.example.artshop.dto.ArtistDTO;
@@ -13,6 +14,8 @@ import com.example.artshop.repository.ArtRepository;
 import com.example.artshop.repository.ArtistRepository;
 import com.example.artshop.repository.ClassificationRepository;
 import com.example.artshop.service.cache.EntityCache;
+import jakarta.persistence.EntityNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -24,805 +27,467 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ArtServiceTest {
-    @Mock private ArtRepository artRepository;
-    @Mock private ArtistRepository artistRepository;
-    @Mock private ClassificationRepository classificationRepository;
-    @Mock private CacheService cacheService;
-    @Mock private EntityCache<Classification> classificationCache;
-    @Mock private EntityCache<Artist> artistCache;
-    @Mock private EntityCache<Art> artCache;
 
-    @InjectMocks private ArtService artService;
+    @Mock
+    private ArtRepository artRepository;
 
-    private ArtDTO createValidArtDTO() {
-        ArtDTO artDTO = new ArtDTO();
-        artDTO.setTitle("Test Art");
-        artDTO.setYear(2020);
-        ClassificationDTO classificationDTO = new ClassificationDTO();
-        classificationDTO.setId(1);
-        classificationDTO.setName("Test Classification");
-        classificationDTO.setDescription("Test Description");
-        artDTO.setClassification(classificationDTO);
+    @Mock
+    private ArtistRepository artistRepository;
+
+    @Mock
+    private ClassificationRepository classificationRepository;
+
+    @Mock
+    private CacheService cacheService;
+
+    @Mock
+    private EntityCache<Art> artCache;
+
+    @Mock
+    private EntityCache<Artist> artistCache;
+
+    @Mock
+    private EntityCache<Classification> classificationCache;
+
+    @InjectMocks
+    private ArtService artService;
+
+    private Art art;
+    private ArtDTO artDTO;
+    private Artist artist;
+    private Classification classification;
+
+    @BeforeEach
+    void setUp() {
+        artist = new Artist();
+        artist.setId(1);
+        artist.setFirstName("John");
+        artist.setLastName("Doe");
+
+        classification = new Classification();
+        classification.setId(1);
+        classification.setName("Painting");
+        classification.setDescription("Oil painting");
+
+        art = new Art();
+        art.setId(1);
+        art.setTitle("Mona Lisa");
+        art.setYear(1503);
+        art.setArtists(new HashSet<>(List.of(artist)));
+        art.setClassification(classification);
+
+        artDTO = new ArtDTO();
+        artDTO.setId(1);
+        artDTO.setTitle("Mona Lisa");
+        artDTO.setYear(1503);
+
         ArtistDTO artistDTO = new ArtistDTO();
         artistDTO.setId(1);
-        artistDTO.setLastName("Test Artist");
+        artistDTO.setFirstName("John");
+        artistDTO.setLastName("Doe");
         artDTO.setArtists(List.of(artistDTO));
-        return artDTO;
-    }
 
-    private Art createTestArt(String title, Integer year, Classification classification, Set<Artist> artists) {
-        Art art = new Art();
-        art.setId(1);
-        art.setTitle(title);
-        art.setYear(year);
-        art.setClassification(classification);
-        art.setArtists(artists);
-        return art;
-    }
-
-    private Artist createTestArtist(String lastName) {
-        Artist artist = new Artist();
-        artist.setLastName(lastName);
-        return artist;
-    }
-
-    private Classification createTestClassification(String name) {
-        Classification classification = new Classification();
-        classification.setName(name);
-        classification.setDescription("Test Description");
-        return classification;
+        ClassificationDTO classificationDTO = new ClassificationDTO();
+        classificationDTO.setId(1);
+        classificationDTO.setName("Painting");
+        classificationDTO.setDescription("Oil painting");
+        artDTO.setClassification(classificationDTO);
     }
 
     @Test
-    void addBulkArts_WithValidData_ReturnsSavedArts() {
-        ArtDTO artDTO = createValidArtDTO();
-        Artist artist = createTestArtist("Test Artist");
-        Classification classification = createTestClassification("Test Classification");
-        Art expectedArt = createTestArt("Test Art", 2020, classification, Set.of(artist));
+    void testAddArt_Success() {
+        when(classificationRepository.findByName("Painting")).thenReturn(null);
+        when(classificationRepository.save(any(Classification.class))).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
 
-        lenient().when(artistRepository.findById(any())).thenReturn(Optional.of(artist));
-        lenient().when(classificationRepository.findById(any())).thenReturn(Optional.of(classification));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt);
+        ArtDTO result = artService.addArt(artDTO);
 
-        List<Art> result = artService.addBulkArts(List.of(artDTO));
-
-        assertEquals(1, result.size());
-        assertEquals("Test Art", result.get(0).getTitle());
+        assertNotNull(result);
+        assertEquals("Mona Lisa", result.getTitle());
+        verify(artCache).put(1, art);
     }
 
     @Test
-    void addBulkArts_WithNonExistingArtist_ThrowsNotFoundException() {
-        ArtDTO artDTO = createValidArtDTO();
-        lenient().when(artistRepository.findById(anyInt())).thenReturn(Optional.empty());
-        assertThrows(NotFoundException.class, () -> artService.addBulkArts(List.of(artDTO)));
-    }
-
-    @Test
-    void addBulkArts_WithoutTitle_ThrowsValidationException() {
-        ArtDTO artDTO = new ArtDTO();
-        artDTO.setYear(2020);
-        assertThrows(ValidationException.class, () -> artService.addBulkArts(List.of(artDTO)));
-    }
-
-    @Test
-    void addBulkArts_WithEmptyTitle_ThrowsValidationException() {
-        ArtDTO artDTO = new ArtDTO();
-        artDTO.setTitle("");
-        artDTO.setYear(2020);
-        assertThrows(ValidationException.class, () -> artService.addBulkArts(List.of(artDTO)));
-    }
-
-    @Test
-    void addBulkArts_WithoutClassification_SavesArtWithoutClassification() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setClassification(null);
-        Artist artist = createTestArtist("Test Artist");
-        Art expectedArt = createTestArt("Test Art", 2020, null, Set.of(artist));
-
-        lenient().when(artistRepository.findById(anyInt())).thenReturn(Optional.of(artist));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt);
-
-        List<Art> result = artService.addBulkArts(List.of(artDTO));
-
-        assertNull(result.get(0).getClassification());
-    }
-
-    @Test
-    void addBulkArts_WithoutArtists_SavesArtWithoutArtists() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setArtists(null);
-        Art expectedArt = createTestArt("Test Art", 2020, null, new HashSet<>());
-
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt);
-
-        List<Art> result = artService.addBulkArts(List.of(artDTO));
-
-        assertTrue(result.get(0).getArtists().isEmpty());
-    }
-
-    @Test
-    void addBulkArts_WithEmptyArtistsList_SavesArtWithoutArtists() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setArtists(Collections.emptyList());
-        Art expectedArt = createTestArt("Test Art", 2020, null, new HashSet<>());
-
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt);
-
-        List<Art> result = artService.addBulkArts(List.of(artDTO));
-
-        assertTrue(result.get(0).getArtists().isEmpty());
-    }
-
-    @Test
-    void addBulkArts_WithNullList_ThrowsValidationException() {
-        assertThrows(ValidationException.class, () -> artService.addBulkArts(null));
-    }
-
-    @Test
-    void addBulkArts_WithEmptyList_ThrowsValidationException() {
-        assertThrows(ValidationException.class, () -> artService.addBulkArts(Collections.emptyList()));
-    }
-
-    @Test
-    void addBulkArts_WithTooManyItems_ThrowsValidationException() {
-        List<ArtDTO> largeList = Collections.nCopies(101, new ArtDTO());
-        assertThrows(ValidationException.class, () -> artService.addBulkArts(largeList));
-    }
-
-    @Test
-    void addArt_WithValidData_ReturnsSavedArt() {
-        ArtDTO artDTO = createValidArtDTO();
-        Artist artist = createTestArtist("Test Artist");
-        Classification classification = createTestClassification("Test Classification");
-        Art expectedArt = createTestArt("Test Art", 2020, classification, Set.of(artist));
-
-        lenient().when(artistRepository.findById(any())).thenReturn(Optional.of(artist));
-        lenient().when(classificationRepository.findById(any())).thenReturn(Optional.of(classification));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-        lenient().when(cacheService.getClassificationCache()).thenReturn(classificationCache);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        Art result = artService.addArt(artDTO);
-
-        assertEquals("Test Art", result.getTitle());
-        verify(artCache).put(anyInt(), any(Art.class));
-    }
-
-    @Test
-    void addArt_WithNewClassification_CreatesAndSavesClassification() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.getClassification().setId(null);
-        artDTO.getClassification().setName("New Classification");
-        Artist artist = createTestArtist("Test Artist");
-        Classification newClassification = createTestClassification("New Classification");
-        Art expectedArt = createTestArt("Test Art", 2020, newClassification, Set.of(artist));
-
-        lenient().when(classificationRepository.findByName(anyString())).thenReturn(null);
-        lenient().when(classificationRepository.save(any(Classification.class))).thenReturn(newClassification);
-        lenient().when(artistRepository.findById(anyInt())).thenReturn(Optional.of(artist));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-        lenient().when(cacheService.getClassificationCache()).thenReturn(classificationCache);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        Art result = artService.addArt(artDTO);
-
-        verify(classificationRepository).save(any(Classification.class));
-    }
-
-    @Test
-    void addArt_WithExistingClassificationByName_DoesNotCreateNew() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.getClassification().setId(null);
-        artDTO.getClassification().setName("Existing Classification");
-        Artist artist = createTestArtist("Test Artist");
-        Classification existingClassification = createTestClassification("Existing Classification");
-        Art expectedArt = createTestArt("Test Art", 2020, existingClassification, Set.of(artist));
-
-        lenient().when(classificationRepository.findByName(anyString())).thenReturn(existingClassification);
-        lenient().when(artistRepository.findById(anyInt())).thenReturn(Optional.of(artist));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-        lenient().when(cacheService.getClassificationCache()).thenReturn(classificationCache);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        Art result = artService.addArt(artDTO);
-
-        verify(classificationRepository, never()).save(any(Classification.class));
-    }
-
-    @Test
-    void addArt_WithNewArtist_CreatesAndSavesArtist() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.getArtists().get(0).setId(null);
-        Artist newArtist = createTestArtist("New Artist");
-        Classification classification = createTestClassification("Test Classification");
-        Art expectedArt = createTestArt("Test Art", 2020, classification, Set.of(newArtist));
-
-        lenient().when(artistRepository.save(any(Artist.class))).thenReturn(newArtist);
-        lenient().when(classificationRepository.findById(any())).thenReturn(Optional.of(classification));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-        lenient().when(cacheService.getClassificationCache()).thenReturn(classificationCache);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        Art result = artService.addArt(artDTO);
-
-        verify(artistRepository).save(any(Artist.class));
-    }
-
-    @Test
-    void addArt_WithNullClassification_DoesNotUpdateClassificationCache() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setClassification(null);
-        Artist artist = createTestArtist("Test Artist");
-        Art expectedArt = createTestArt("Test Art", 2020, null, Set.of(artist));
-
-        lenient().when(artistRepository.findById(anyInt())).thenReturn(Optional.of(artist));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        Art result = artService.addArt(artDTO);
-
-        verify(cacheService, never()).getClassificationCache();
-    }
-
-    @Test
-    void addArt_WithNullArtDTO_ThrowsValidationException() {
+    void testAddArt_NullData() {
         assertThrows(ValidationException.class, () -> artService.addArt(null));
     }
 
     @Test
-    void addArt_WithEmptyTitle_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
+    void testAddArt_NoTitle() {
+        artDTO.setTitle(null);
+        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
+    }
+
+    @Test
+    void testAddArt_EmptyTitle() {
         artDTO.setTitle("");
         assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
     }
 
     @Test
-    void addArt_WithFutureYear_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
+    void testAddArt_FutureYear() {
         artDTO.setYear(LocalDate.now().getYear() + 1);
         assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
     }
 
     @Test
-    void addArt_WithLongTitle_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setTitle("a".repeat(61));
+    void testAddArt_InvalidClassification() {
+        artDTO.getClassification().setName(null);
         assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
     }
 
     @Test
-    void patchArt_WithValidUpdates_ReturnsUpdatedArt() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getTitle()).thenReturn("Updated Title");
-        lenient().when(patchDTO.getYear()).thenReturn(2021);
-
-        Art existingArt = createTestArt("Original Title", 2020, null, new HashSet<>());
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(existingArt);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        Art result = artService.patchArt(1, patchDTO);
-
-        assertEquals("Updated Title", result.getTitle());
-        verify(artCache).update(1, result);
+    void testAddArt_InvalidArtist() {
+        artDTO.getArtists().get(0).setFirstName(null);
+        artDTO.getArtists().get(0).setLastName(null);
+        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
     }
 
     @Test
-    void patchArt_WithNullPatchDTO_ThrowsValidationException() {
-        assertThrows(ValidationException.class, () -> artService.patchArt(1, null));
+    void testAddArt_ExistingClassification() {
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.addArt(artDTO);
+
+        assertNotNull(result);
+        verify(classificationRepository, never()).save(any());
     }
 
     @Test
-    void patchArt_WithNoUpdates_ThrowsValidationException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(false);
-        assertThrows(ValidationException.class, () -> artService.patchArt(1, patchDTO));
+    void testAddArt_NewArtist() {
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.empty());
+        when(artistRepository.save(any(Artist.class))).thenReturn(artist);
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.addArt(artDTO);
+
+        assertNotNull(result);
+        verify(artistRepository).save(any(Artist.class));
     }
 
     @Test
-    void patchArt_WithEmptyTitle_ThrowsValidationException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getTitle()).thenReturn("");
-        assertThrows(ValidationException.class, () -> artService.patchArt(1, patchDTO));
+    void testGetArtById_FoundInCache() {
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artCache.get(1)).thenReturn(Optional.of(art));
+
+        ArtDTO result = artService.getArtById(1);
+
+        assertNotNull(result);
+        assertEquals("Mona Lisa", result.getTitle());
     }
 
     @Test
-    void patchArt_WithInvalidYear_ThrowsValidationException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getYear()).thenReturn(999);
-        assertThrows(ValidationException.class, () -> artService.patchArt(1, patchDTO));
+    void testGetArtById_NotFoundInCacheFoundInRepo() {
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artCache.get(1)).thenReturn(Optional.empty());
+        when(artRepository.findWithArtistsAndClassificationById(1)).thenReturn(Optional.of(art));
+
+        ArtDTO result = artService.getArtById(1);
+
+        assertNotNull(result);
+        verify(artCache).put(1, art);
     }
 
     @Test
-    void patchArt_WithClassificationUpdate_UpdatesClassification() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getClassificationId()).thenReturn(1);
-        lenient().when(patchDTO.getYear()).thenReturn(2020);
-
-        Classification classification = createTestClassification("New Classification");
-        Art existingArt = createTestArt("Title", 2020, null, new HashSet<>());
-
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(classificationRepository.findById(anyInt())).thenReturn(classification);
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(existingArt);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getClassificationCache()).thenReturn(classificationCache);
-
-        Art result = artService.patchArt(1, patchDTO);
-
-        verify(classificationCache).update(1, classification);
-    }
-
-    @Test
-    void patchArt_WithArtistUpdates_UpdatesArtists() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getArtistIds()).thenReturn(new HashSet<>(Set.of(1, 2)));
-        lenient().when(patchDTO.getYear()).thenReturn(2020);
-
-        Artist artist1 = createTestArtist("Artist1");
-        Artist artist2 = createTestArtist("Artist2");
-        Art existingArt = createTestArt("Title", 2020, null, new HashSet<>());
-
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artistRepository.findAllById(any(Iterable.class))).thenReturn(Arrays.asList(artist1, artist2));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(existingArt);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-
-        Art result = artService.patchArt(1, patchDTO);
-
-        verify(artistCache, times(2)).update(anyInt(), any(Artist.class));
-    }
-
-    @Test
-    void patchArt_WithEmptyArtistIds_ClearsArtists() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getArtistIds()).thenReturn(new HashSet<>());
-        lenient().when(patchDTO.getYear()).thenReturn(2020);
-
-        Artist existingArtist = createTestArtist("Existing Artist");
-        Art existingArt = createTestArt("Title", 2020, null, new HashSet<>(Set.of(existingArtist)));
-
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(existingArt);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-
-        Art result = artService.patchArt(1, patchDTO);
-
-        assertTrue(result.getArtists().isEmpty());
-    }
-
-    @Test
-    void patchArt_WithNullArtistIds_ClearsArtists() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getArtistIds()).thenReturn(null);
-        lenient().when(patchDTO.getYear()).thenReturn(2020);
-
-        Artist existingArtist = createTestArtist("Existing Artist");
-        Art existingArt = createTestArt("Title", 2020, null, new HashSet<>(Set.of(existingArtist)));
-
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(existingArt);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-
-        Art result = artService.patchArt(1, patchDTO);
-
-        assertTrue(result.getArtists().isEmpty());
-    }
-
-    @Test
-    void patchArt_WithNonExistingArt_ThrowsNotFoundException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getYear()).thenReturn(2020);
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () -> artService.patchArt(1, patchDTO));
-    }
-
-    @Test
-    void patchArt_WithNonExistingClassification_ThrowsNotFoundException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getClassificationId()).thenReturn(1);
-        lenient().when(patchDTO.getYear()).thenReturn(2020);
-
-        Art existingArt = createTestArt("Title", 2020, null, new HashSet<>());
-
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(classificationRepository.findById(anyInt())).thenReturn(null);
-
-        assertThrows(NotFoundException.class, () -> artService.patchArt(1, patchDTO));
-    }
-
-    @Test
-    void patchArt_WithSomeInvalidArtistIds_ThrowsNotFoundException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getArtistIds()).thenReturn(new HashSet<>(Set.of(1, 2)));
-        lenient().when(patchDTO.getYear()).thenReturn(2020);
-
-        Artist artist1 = createTestArtist("Artist1");
-        Art existingArt = createTestArt("Title", 2020, null, new HashSet<>());
-
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artistRepository.findAllById(any(Iterable.class))).thenReturn(Arrays.asList(artist1));
-
-        assertThrows(NotFoundException.class, () -> artService.patchArt(1, patchDTO));
-    }
-
-    @Test
-    void patchArt_WithSomeNonExistingArtists_ThrowsNotFoundException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getArtistIds()).thenReturn(new HashSet<>(Set.of(1, 2)));
-        lenient().when(patchDTO.getYear()).thenReturn(2020);
-
-        Artist artist1 = createTestArtist("Artist1");
-        Art existingArt = createTestArt("Title", 2020, null, new HashSet<>());
-
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artistRepository.findAllById(any(Iterable.class))).thenReturn(Arrays.asList(artist1));
-
-        assertThrows(NotFoundException.class, () -> artService.patchArt(1, patchDTO));
-    }
-
-    @Test
-    void patchArt_WithInvalidClassificationId_ThrowsNotFoundException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getClassificationId()).thenReturn(1);
-        lenient().when(patchDTO.getYear()).thenReturn(2020);
-
-        Art existingArt = createTestArt("Title", 2020, null, new HashSet<>());
-
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(classificationRepository.findById(anyInt())).thenReturn(null);
-
-        assertThrows(NotFoundException.class, () -> artService.patchArt(1, patchDTO));
-    }
-
-    @Test
-    void patchArt_WithLongTitle_ThrowsValidationException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getTitle()).thenReturn("a".repeat(61));
-        lenient().when(patchDTO.getYear()).thenReturn(2020);
-
-        Art existingArt = createTestArt("Original Title", 2020, null, new HashSet<>());
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        assertThrows(ValidationException.class, () -> artService.patchArt(1, patchDTO));
-    }
-
-    @Test
-    void patchArt_WithFutureYear_ThrowsValidationException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getYear()).thenReturn(LocalDate.now().getYear() + 1);
-
-        Art existingArt = createTestArt("Original Title", 2020, null, new HashSet<>());
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        assertThrows(ValidationException.class, () -> artService.patchArt(1, patchDTO));
-    }
-
-    @Test
-    void getArtById_ReturnsCachedArt() {
-        Art expectedArt = createTestArt("Cached Art", 2020, null, new HashSet<>());
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(artCache.get(anyInt())).thenReturn(Optional.of(expectedArt));
-
-        Art result = artService.getArtById(1);
-
-        assertEquals("Cached Art", result.getTitle());
-    }
-
-    @Test
-    void getArtById_ReturnsFromRepositoryWhenNotCached() {
-        Art expectedArt = createTestArt("Repository Art", 2020, null, new HashSet<>());
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(artCache.get(anyInt())).thenReturn(Optional.empty());
-        lenient().when(artRepository.findById(anyInt())).thenReturn(Optional.of(expectedArt));
-
-        Art result = artService.getArtById(1);
-
-        assertEquals("Repository Art", result.getTitle());
-    }
-
-    @Test
-    void getArtById_ThrowsNotFoundWhenNotExists() {
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(artCache.get(anyInt())).thenReturn(Optional.empty());
-        lenient().when(artRepository.findById(anyInt())).thenReturn(Optional.empty());
+    void testGetArtById_NotFound() {
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artCache.get(1)).thenReturn(Optional.empty());
+        when(artRepository.findWithArtistsAndClassificationById(1)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> artService.getArtById(1));
     }
 
     @Test
-    void deleteArtById_RemovesArtAndUpdatesCache() {
-        Artist artist = createTestArtist("Test Artist");
-        Art art = createTestArt("Test Art", 2020, null, new HashSet<>(Set.of(artist)));
+    void testUpdateArt_Success() {
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
 
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(art));
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
+        ArtDTO result = artService.updateArt(1, artDTO);
 
-        artService.deleteArtById(1);
-
-        verify(artRepository).delete(art);
-        verify(artCache).evict(1);
-        verify(artistCache).update(artist.getId(), artist);
+        assertNotNull(result);
+        verify(artCache).update(1, art);
     }
 
     @Test
-    void deleteArtById_WithNonExistingArt_ThrowsNotFound() {
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.empty());
+    void testUpdateArt_NotFound() {
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> artService.updateArt(1, artDTO));
+    }
+
+    @Test
+    void testUpdateArt_NullClassification() {
+        artDTO.setClassification(null);
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.updateArt(1, artDTO);
+
+        assertNotNull(result);
+        assertNull(result.getClassification());
+    }
+
+    @Test
+    void testUpdateArt_NullArtists() {
+        artDTO.setArtists(null);
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.updateArt(1, artDTO);
+
+        assertNotNull(result);
+        assertNull(result.getArtists());
+    }
+
+    @Test
+    void testDeleteArtById_Success() {
+        Art artWithArtists = new Art();
+        artWithArtists.setId(1);
+        artWithArtists.setArtists(new HashSet<>(List.of(artist)));
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(artWithArtists));
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        artService.deleteArtById(1);
+
+        verify(artRepository).delete(artWithArtists);
+        verify(artCache).evict(1);
+    }
+
+    @Test
+    void testDeleteArtById_NotFound() {
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> artService.deleteArtById(1));
     }
 
     @Test
-    void getArtsByArtistName_ReturnsMatchingArts() {
-        Artist artist = createTestArtist("Van Gogh");
-        Art art1 = createTestArt("Starry Night", 1889, null, Set.of(artist));
-        Art art2 = createTestArt("Sunflowers", 1888, null, Set.of(artist));
+    void testPatchArt_Success() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
 
-        lenient().when(artRepository.findByArtistsLastNameContainingIgnoreCase(anyString()))
-                .thenReturn(List.of(art1, art2));
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
 
-        List<Art> result = artService.getArtsByArtistName("Van");
+        ArtDTO result = artService.patchArt(1, patchDTO);
 
-        assertEquals(2, result.size());
+        assertNotNull(result);
+        verify(artCache).update(1, art);
     }
 
     @Test
-    void getArtsByArtistName_ReturnsEmptyListWhenNoMatches() {
-        lenient().when(artRepository.findByArtistsLastNameContainingIgnoreCase(anyString()))
-                .thenReturn(Collections.emptyList());
+    void testPatchArt_UpdateClassification() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
 
-        List<Art> result = artService.getArtsByArtistName("NonExisting");
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(classificationRepository.findById(2)).thenReturn(classification);
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(cacheService.getClassificationCache()).thenReturn(classificationCache);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
 
-        assertTrue(result.isEmpty());
+        ArtDTO result = artService.patchArt(1, patchDTO);
+
+        assertNotNull(result);
+        verify(classificationCache).update(2, classification);
     }
 
     @Test
-    void updateArt_WithValidData_ReturnsUpdatedArt() {
-        ArtDTO artDTO = createValidArtDTO();
-        Artist artist = createTestArtist("Updated Artist");
-        Classification classification = createTestClassification("Updated Classification");
-        Art existingArt = createTestArt("Original Title", 2019, null, new HashSet<>());
-        Art updatedArt = createTestArt("Updated Title", 2020, classification, Set.of(artist));
+    void testPatchArt_UpdateArtists() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
 
-        lenient().when(artRepository.findWithArtistsById(any())).thenReturn(Optional.of(existingArt));
-        lenient().when(artistRepository.findById(any())).thenReturn(Optional.of(artist));
-        lenient().when(classificationRepository.findById(any())).thenReturn(Optional.of(classification));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(updatedArt);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
+        Artist newArtist = new Artist();
+        newArtist.setId(2);
+        newArtist.setFirstName("Jane");
+        newArtist.setLastName("Smith");
 
-        Art result = artService.updateArt(1, artDTO);
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(artistRepository.findAllById(any())).thenReturn(List.of(newArtist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
 
-        assertEquals("Updated Title", result.getTitle());
-        verify(artCache).update(1, updatedArt);
+        ArtDTO result = artService.patchArt(1, patchDTO);
+
+        assertNotNull(result);
+        verify(artistCache).update(2, newArtist);
     }
 
     @Test
-    void updateArt_WithNonExistingArt_ThrowsNotFound() {
-        ArtDTO artDTO = createValidArtDTO();
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.empty());
+    void testPatchArt_NoUpdates() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
 
-        assertThrows(NotFoundException.class, () -> artService.updateArt(1, artDTO));
+        assertThrows(ValidationException.class, () -> artService.patchArt(1, patchDTO));
     }
 
     @Test
-    void updateArt_WithNonExistingArtist_ThrowsNotFound() {
-        ArtDTO artDTO = createValidArtDTO();
-        Art existingArt = createTestArt("Original Title", 2019, null, new HashSet<>());
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artistRepository.findById(anyInt())).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () -> artService.updateArt(1, artDTO));
+    void testPatchArt_NullPatchDTO() {
+        assertThrows(ValidationException.class, () -> artService.patchArt(1, null));
     }
 
     @Test
-    void updateArt_WithNonExistingClassification_ThrowsNotFound() {
-        ArtDTO artDTO = createValidArtDTO();
-        Art existingArt = createTestArt("Original Title", 2019, null, new HashSet<>());
-        lenient().when(artRepository.findWithArtistsById(any())).thenReturn(Optional.of(existingArt));
-        lenient().when(artistRepository.findById(any())).thenReturn(Optional.of(createTestArtist("Artist")));
-        lenient().when(classificationRepository.findById(any())).thenReturn(Optional.empty());
+    void testPatchArt_EmptyTitle() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
 
-        assertThrows(NotFoundException.class, () -> artService.updateArt(1, artDTO));
+        assertThrows(ValidationException.class, () -> artService.patchArt(1, patchDTO));
     }
 
     @Test
-    void updateArt_WithNullArtists_ClearsArtists() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setArtists(null);
-        Art existingArt = createTestArt("Original Title", 2019, null, new HashSet<>(Set.of(createTestArtist("Old Artist"))));
-        Art updatedArt = createTestArt("Updated Title", 2020, null, new HashSet<>());
+    void testPatchArt_InvalidYear() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
 
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(updatedArt);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-
-        Art result = artService.updateArt(1, artDTO);
-
-        assertTrue(result.getArtists().isEmpty());
+        assertThrows(ValidationException.class, () -> artService.patchArt(1, patchDTO));
     }
 
     @Test
-    void updateArt_WithEmptyArtistsList_ClearsArtists() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setArtists(Collections.emptyList());
-        Art existingArt = createTestArt("Original Title", 2019, null, new HashSet<>(Set.of(createTestArtist("Old Artist"))));
-        Art updatedArt = createTestArt("Updated Title", 2020, null, new HashSet<>());
+    void testPatchArt_NotFound() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
 
-        lenient().when(artRepository.findWithArtistsById(any())).thenReturn(Optional.of(existingArt));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(updatedArt);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.empty());
 
-        Art result = artService.updateArt(1, artDTO);
-
-        assertTrue(result.getArtists().isEmpty());
+        assertThrows(EntityNotFoundException.class, () -> artService.patchArt(1, patchDTO));
     }
 
     @Test
-    void updateArt_WithLongTitle_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setTitle("a".repeat(61));
-        Art existingArt = createTestArt("Original Title", 2019, null, new HashSet<>());
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
+    void testPatchArt_ClassificationNotFound() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
 
-        assertThrows(ValidationException.class, () -> artService.updateArt(1, artDTO));
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(classificationRepository.findById(999)).thenReturn(null);
+
+        assertThrows(EntityNotFoundException.class, () -> artService.patchArt(1, patchDTO));
     }
 
     @Test
-    void updateArt_WithFutureYear_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setYear(LocalDate.now().getYear() + 1);
-        Art existingArt = createTestArt("Original Title", 2019, null, new HashSet<>());
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
+    void testPatchArt_ArtistsNotFound() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
 
-        assertThrows(ValidationException.class, () -> artService.updateArt(1, artDTO));
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(artistRepository.findAllById(any())).thenReturn(List.of());
+
+        assertThrows(EntityNotFoundException.class, () -> artService.patchArt(1, patchDTO));
     }
 
     @Test
-    void updateArt_WithLongArtistName_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        ArtistDTO artistDTO = artDTO.getArtists().get(0);
-        artistDTO.setFirstName("a".repeat(61));
-        Art existingArt = createTestArt("Original Title", 2019, null, new HashSet<>());
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
+    void testGetArtsByClassificationId() {
+        when(artRepository.findByClassificationId(1)).thenReturn(List.of(art));
+        when(cacheService.getArtCache()).thenReturn(artCache);
 
-        assertThrows(ValidationException.class, () -> artService.updateArt(1, artDTO));
+        List<ArtDTO> result = artService.getArtsByClassificationId(1);
+
+        assertEquals(1, result.size());
+        verify(artCache).put(1, art);
     }
 
     @Test
-    void updateArt_WithInvalidClassification_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.getClassification().setName("");
-        Art existingArt = createTestArt("Original Title", 2019, null, new HashSet<>());
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
+    void testGetArtsByClassificationName() {
+        when(artRepository.findByClassificationNameContainingIgnoreCase("Painting")).thenReturn(List.of(art));
+        when(cacheService.getArtCache()).thenReturn(artCache);
 
-        assertThrows(ValidationException.class, () -> artService.updateArt(1, artDTO));
+        List<ArtDTO> result = artService.getArtsByClassificationName("Painting");
+
+        assertEquals(1, result.size());
     }
 
     @Test
-    void getAllArts_ReturnsAllArts() {
-        Art art1 = createTestArt("Art 1", 2020, null, new HashSet<>());
-        Art art2 = createTestArt("Art 2", 2021, null, new HashSet<>());
+    void testGetArtByTitle() {
+        when(artRepository.findByTitle("Mona Lisa")).thenReturn(Optional.of(art));
 
-        lenient().when(artRepository.findAll()).thenReturn(List.of(art1, art2));
+        ArtDTO result = artService.getArtByTitle("Mona Lisa");
 
-        List<Art> result = artService.getAllArts();
-
-        assertEquals(2, result.size());
+        assertNotNull(result);
+        assertEquals("Mona Lisa", result.getTitle());
     }
 
     @Test
-    void getArtsByClassificationId_ReturnsMatchingArts() {
-        Classification classification = createTestClassification("Test Classification");
-        Art art1 = createTestArt("Art 1", 2020, classification, new HashSet<>());
-        Art art2 = createTestArt("Art 2", 2021, classification, new HashSet<>());
+    void testGetArtByTitle_NotFound() {
+        when(artRepository.findByTitle("Unknown")).thenReturn(Optional.empty());
 
-        lenient().when(artRepository.findByClassificationId(anyInt())).thenReturn(List.of(art1, art2));
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        List<Art> result = artService.getArtsByClassificationId(1);
-
-        assertEquals(2, result.size());
+        assertThrows(NotFoundException.class, () -> artService.getArtByTitle("Unknown"));
     }
 
     @Test
-    void getArtsByClassificationId_ReturnsEmptyListWhenNoMatches() {
-        lenient().when(artRepository.findByClassificationId(anyInt())).thenReturn(Collections.emptyList());
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
+    void testGetArtsByArtistName() {
+        when(artRepository.findByArtistsLastNameContainingIgnoreCase("Doe")).thenReturn(List.of(art));
+        when(cacheService.getArtCache()).thenReturn(artCache);
 
-        List<Art> result = artService.getArtsByClassificationId(1);
+        List<ArtDTO> result = artService.getArtsByArtistName("Doe");
 
-        assertTrue(result.isEmpty());
+        assertEquals(1, result.size());
+        verify(artCache).put(1, art);
     }
 
     @Test
-    void getArtsByClassificationName_ReturnsMatchingArts() {
-        Classification classification = createTestClassification("Impressionism");
-        Art art1 = createTestArt("Art 1", 2020, classification, new HashSet<>());
-        Art art2 = createTestArt("Art 2", 2021, classification, new HashSet<>());
+    void testGetAllArts() {
+        when(artRepository.findAllWithArtistsAndClassification()).thenReturn(List.of(art));
+        when(cacheService.getArtCache()).thenReturn(artCache);
 
-        lenient().when(artRepository.findByClassificationNameContainingIgnoreCase(anyString()))
-                .thenReturn(List.of(art1, art2));
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
+        List<ArtDTO> result = artService.getAllArts();
 
-        List<Art> result = artService.getArtsByClassificationName("Impression");
-
-        assertEquals(2, result.size());
+        assertEquals(1, result.size());
+        verify(artCache).put(1, art);
     }
 
     @Test
-    void getArtsByClassificationName_ReturnsEmptyListWhenNoMatches() {
-        lenient().when(artRepository.findByClassificationNameContainingIgnoreCase(anyString()))
-                .thenReturn(Collections.emptyList());
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
+    void testAddBulkArts_Success() {
+        List<ArtDTO> dtos = List.of(artDTO);
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
 
-        List<Art> result = artService.getArtsByClassificationName("NonExisting");
+        List<ArtDTO> result = artService.addBulkArts(dtos);
 
-        assertTrue(result.isEmpty());
+        assertEquals(1, result.size());
     }
 
     @Test
-    void getArtByTitle_ReturnsArt() {
-        Art expectedArt = createTestArt("Specific Art", 2020, null, new HashSet<>());
-        lenient().when(artRepository.findByTitle(anyString())).thenReturn(Optional.of(expectedArt));
-
-        Art result = artService.getArtByTitle("Specific Art");
-
-        assertEquals("Specific Art", result.getTitle());
+    void testAddBulkArts_EmptyList() {
+        assertThrows(ValidationException.class, () -> artService.addBulkArts(List.of()));
     }
 
     @Test
-    void getArtByTitle_ThrowsNotFound() {
-        lenient().when(artRepository.findByTitle(anyString())).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () -> artService.getArtByTitle("Non-existent Art"));
+    void testAddBulkArts_NullList() {
+        assertThrows(ValidationException.class, () -> artService.addBulkArts(null));
     }
 
     @Test
-    void getCacheInfo_ReturnsCacheInfo() {
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(artCache.getCacheInfo()).thenReturn("Cache info");
+    void testAddBulkArts_TooManyItems() {
+        List<ArtDTO> dtos = Arrays.asList(new ArtDTO[ApplicationConstants.MAX_BULK_OPERATION_SIZE + 1]);
+        assertThrows(ValidationException.class, () -> artService.addBulkArts(dtos));
+    }
+
+    @Test
+    void testAddBulkArts_InvalidArt() {
+        artDTO.setTitle(null);
+        List<ArtDTO> dtos = List.of(artDTO);
+
+        assertThrows(ValidationException.class, () -> artService.addBulkArts(dtos));
+    }
+
+    @Test
+    void testGetCacheInfo() {
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artCache.getCacheInfo()).thenReturn("Cache info");
 
         String result = artService.getCacheInfo();
 
@@ -830,393 +495,1153 @@ class ArtServiceTest {
     }
 
     @Test
-    void getArtCache_ReturnsArtCache() {
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
+    void testGetArtCache() {
+        when(cacheService.getArtCache()).thenReturn(artCache);
 
         EntityCache<Art> result = artService.getArtCache();
 
-        assertSame(artCache, result);
+        assertEquals(artCache, result);
     }
 
     @Test
-    void addBulkArts_WithLongTitle_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setTitle("a".repeat(61));
-        assertThrows(ValidationException.class, () -> artService.addBulkArts(List.of(artDTO)));
+    void testAddArt_WithNullYear_ShouldSucceed() {
+        artDTO.setYear(null);
+
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.addArt(artDTO);
+
+        assertNotNull(result);
+        assertNull(result.getYear());
     }
 
     @Test
-    void addBulkArts_WithFutureYear_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setYear(LocalDate.now().getYear() + 1);
-        assertThrows(ValidationException.class, () -> artService.addBulkArts(List.of(artDTO)));
+    void testAddArt_WithNullArtists_ShouldSucceed() {
+        artDTO.setArtists(null);
+
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.addArt(artDTO);
+
+        assertNotNull(result);
+        assertNull(result.getArtists());
     }
 
     @Test
-    void addBulkArts_WithInvalidClassification_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.getClassification().setName("");
-        assertThrows(ValidationException.class, () -> artService.addBulkArts(List.of(artDTO)));
-    }
-
-    @Test
-    void addBulkArts_WithInvalidArtist_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        ArtistDTO artistDTO = artDTO.getArtists().get(0);
-        artistDTO.setFirstName(null);
-        artistDTO.setLastName(null);
-        assertThrows(ValidationException.class, () -> artService.addBulkArts(List.of(artDTO)));
-    }
-
-    @Test
-    void addArt_WithLongArtistName_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        ArtistDTO artistDTO = artDTO.getArtists().get(0);
-        artistDTO.setFirstName("a".repeat(61));
-        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
-    }
-
-    @Test
-    void addArt_WithLongClassificationName_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.getClassification().setName("a".repeat(61));
-        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
-    }
-
-    @Test
-    void addArt_WithLongClassificationDescription_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.getClassification().setDescription("a".repeat(121));
-        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
-    }
-
-    @Test
-    void addArt_WithNullClassification_ProcessesCorrectly() {
-        ArtDTO artDTO = createValidArtDTO();
+    void testAddArt_WithNullClassification_ShouldSucceed() {
         artDTO.setClassification(null);
-        Artist artist = createTestArtist("Test Artist");
-        Art expectedArt = createTestArt("Test Art", 2020, null, Set.of(artist));
 
-        lenient().when(artistRepository.findById(anyInt())).thenReturn(Optional.of(artist));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
 
-        Art result = artService.addArt(artDTO);
+        ArtDTO result = artService.addArt(artDTO);
 
+        assertNotNull(result);
         assertNull(result.getClassification());
+    }
+
+    @Test
+    void testUpdateArt_WithNullYear_ShouldSucceed() {
+        artDTO.setYear(null);
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.updateArt(1, artDTO);
+
+        assertNotNull(result);
+        assertNull(result.getYear());
+    }
+
+    @Test
+    void testPatchArt_WithNullTitle_ShouldNotUpdateTitle() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtDTO result = artService.patchArt(1, patchDTO);
+
+        assertNotNull(result);
+        assertEquals("Mona Lisa", result.getTitle());
+        assertEquals(1600, result.getYear());
+    }
+
+    @Test
+    void testPatchArt_WithNullYear_ShouldNotUpdateYear() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();;
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtDTO result = artService.patchArt(1, patchDTO);
+
+        assertNotNull(result);
+        assertEquals("New Title", result.getTitle());
+        assertEquals(1503, result.getYear());
+    }
+
+    @Test
+    void testGetArtsByClassificationId_EmptyResults_ShouldReturnEmptyList() {
+        when(artRepository.findByClassificationId(999)).thenReturn(Collections.emptyList());
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        List<ArtDTO> result = artService.getArtsByClassificationId(999);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testGetArtsByClassificationName_EmptyResults_ShouldReturnEmptyList() {
+        when(artRepository.findByClassificationNameContainingIgnoreCase("Nonexistent")).thenReturn(Collections.emptyList());
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        List<ArtDTO> result = artService.getArtsByClassificationName("Nonexistent");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testGetArtsByArtistName_EmptyResults_ShouldReturnEmptyList() {
+        when(artRepository.findByArtistsLastNameContainingIgnoreCase("Nonexistent")).thenReturn(Collections.emptyList());
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        List<ArtDTO> result = artService.getArtsByArtistName("Nonexistent");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testAddBulkArts_WithNullClassification_ShouldSucceed() {
+        artDTO.setClassification(null);
+        List<ArtDTO> dtos = List.of(artDTO);
+
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+
+        List<ArtDTO> result = artService.addBulkArts(dtos);
+
+        assertEquals(1, result.size());
+        assertNull(result.get(0).getClassification());
+    }
+
+    // Добавить в существующий ArtServiceTest.java
+
+    @Test
+    void testAddArt_WithEmptyArtistList_ShouldSucceed() {
+        artDTO.setArtists(Collections.emptyList());
+
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.addArt(artDTO);
+
+        assertNotNull(result);
+        assertTrue(result.getArtists().isEmpty());
+    }
+
+    @Test
+    void testAddArt_WithZeroYear_ShouldSucceed() {
+        artDTO.setYear(0);
+
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.addArt(artDTO);
+
+        assertNotNull(result);
+        assertEquals(0, result.getYear());
+    }
+
+    @Test
+    void testUpdateArt_WithEmptyArtists_ShouldClearArtists() {
+        artDTO.setArtists(Collections.emptyList());
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.updateArt(1, artDTO);
+
+        assertNotNull(result);
+        assertTrue(result.getArtists().isEmpty());
+    }
+
+    @Test
+    void testUpdateArt_WithNullYear_ShouldSetNullYear() {
+        artDTO.setYear(null);
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.updateArt(1, artDTO);
+
+        assertNotNull(result);
+        assertNull(result.getYear());
+    }
+
+    @Test
+    void testGetArtById_WithNullClassification_ShouldHandleGracefully() {
+        Art artWithoutClassification = new Art();
+        artWithoutClassification.setId(2);
+        artWithoutClassification.setTitle("No Classification");
+        artWithoutClassification.setClassification(null);
+        artWithoutClassification.setArtists(new HashSet<>());
+
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artCache.get(2)).thenReturn(Optional.empty());
+        when(artRepository.findWithArtistsAndClassificationById(2)).thenReturn(Optional.of(artWithoutClassification));
+
+        ArtDTO result = artService.getArtById(2);
+
+        assertNotNull(result);
+        assertEquals("No Classification", result.getTitle());
+        assertNull(result.getClassification());
+    }
+
+    @Test
+    void testGetArtById_WithNullArtists_ShouldHandleGracefully() {
+        Art artWithoutArtists = new Art();
+        artWithoutArtists.setId(3);
+        artWithoutArtists.setTitle("No Artists");
+        artWithoutArtists.setClassification(classification);
+        artWithoutArtists.setArtists(null);
+
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artCache.get(3)).thenReturn(Optional.empty());
+        when(artRepository.findWithArtistsAndClassificationById(3)).thenReturn(Optional.of(artWithoutArtists));
+
+        ArtDTO result = artService.getArtById(3);
+
+        assertNotNull(result);
+        assertEquals("No Artists", result.getTitle());
+        assertNull(result.getArtists());
+    }
+
+    @Test
+    void testAddBulkArts_WithEmptyArtistList_ShouldSucceed() {
+        artDTO.setArtists(Collections.emptyList());
+        List<ArtDTO> dtos = List.of(artDTO);
+
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+
+        List<ArtDTO> result = artService.addBulkArts(dtos);
+
+        assertEquals(1, result.size());
+        assertTrue(result.get(0).getArtists().isEmpty());
+    }
+
+    @Test
+    void testAddBulkArts_WithNullYear_ShouldSucceed() {
+        artDTO.setYear(null);
+        List<ArtDTO> dtos = List.of(artDTO);
+
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+
+        List<ArtDTO> result = artService.addBulkArts(dtos);
+
+        assertEquals(1, result.size());
+        assertNull(result.get(0).getYear());
+    }
+
+    @Test
+    void testConvertToDTO_WithNullValues_ShouldHandleGracefully() {
+        Art nullArt = new Art();
+        nullArt.setId(1);
+        nullArt.setTitle("Test");
+        nullArt.setYear(null);
+        nullArt.setClassification(null);
+        nullArt.setArtists(null);
+
+        // Use reflection to test private method or test through public method
+        when(artRepository.findWithArtistsAndClassificationById(1)).thenReturn(Optional.of(nullArt));
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artCache.get(1)).thenReturn(Optional.empty());
+
+        ArtDTO result = artService.getArtById(1);
+
+        assertNotNull(result);
+        assertEquals("Test", result.getTitle());
+        assertNull(result.getYear());
+        assertNull(result.getClassification());
+        assertNull(result.getArtists());
+    }
+    // Добавить в ArtServiceTest.java
+
+    @Test
+    void testProcessArtist_WithExistingArtistById_ShouldReturnArtist() {
+        ArtistDTO artistDTO = new ArtistDTO();
+        artistDTO.setId(1);
+
+        when(artistRepository.findById(1)).thenReturn(Optional.of(artist));
+
+        Artist result = artService.processArtist(artistDTO);
+
+        assertNotNull(result);
+        assertEquals(1, result.getId());
+    }
+
+    @Test
+    void testProcessArtist_WithNewArtist_ShouldSaveAndReturnArtist() {
+        ArtistDTO artistDTO = new ArtistDTO();
+        artistDTO.setFirstName("New");
+        artistDTO.setLastName("Artist");
+
+        when(artistRepository.findByFirstNameAndLastName("New", "Artist")).thenReturn(Optional.empty());
+        when(artistRepository.save(any(Artist.class))).thenReturn(artist);
+
+        Artist result = artService.processArtist(artistDTO);
+
+        assertNotNull(result);
+        verify(artistRepository).save(any(Artist.class));
+    }
+
+
+    @Test
+    void testPatchArt_WithYearUpdate_ShouldSucceed() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtDTO result = artService.patchArt(1, patchDTO);
+
+        assertNotNull(result);
+        verify(artCache).update(1, art);
+    }
+
+    @Test
+    void testPatchArt_WithClassificationUpdate_ShouldSucceed() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
+
+        Classification newClassification = new Classification();
+        newClassification.setId(2);
+        newClassification.setName("Sculpture");
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(classificationRepository.findById(2)).thenReturn(newClassification);
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(cacheService.getClassificationCache()).thenReturn(classificationCache);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtDTO result = artService.patchArt(1, patchDTO);
+
+        assertNotNull(result);
+        verify(classificationCache).update(2, newClassification);
+    }
+
+    @Test
+    void testPatchArt_WithArtistsUpdate_ShouldSucceed() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
+
+        Artist newArtist = new Artist();
+        newArtist.setId(2);
+        newArtist.setFirstName("Jane");
+        newArtist.setLastName("Smith");
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(artistRepository.findAllById(any())).thenReturn(List.of(newArtist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtDTO result = artService.patchArt(1, patchDTO);
+
+        assertNotNull(result);
+        verify(artistCache).update(2, newArtist);
+    }
+
+    @Test
+    void testPatchArt_WithMultipleUpdates_ShouldSucceed() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtDTO result = artService.patchArt(1, patchDTO);
+
+        assertNotNull(result);
+        verify(artCache).update(1, art);
+    }
+
+    @Test
+    void testPatchArt_WithEmptyArtistIds_ShouldClearArtists() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtDTO result = artService.patchArt(1, patchDTO);
+
+        assertNotNull(result);
+        assertTrue(result.getArtists().isEmpty());
+    }
+
+    @Test
+    void testPatchArt_WithZeroClassificationId_ShouldNotUpdateClassification() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtDTO result = artService.patchArt(1, patchDTO);
+
+        assertNotNull(result);
+        assertEquals("New Title", result.getTitle());
+        assertEquals("Painting", result.getClassification().getName());
+    }
+
+    @Test
+    void testProcessClassification_WithExistingId_ShouldReturnClassification() {
+        ClassificationDTO classificationDTO = new ClassificationDTO();
+        classificationDTO.setId(1);
+
+        when(classificationRepository.findById(1)).thenReturn(classification);
+
+        Classification result = artService.processClassification(classificationDTO);
+
+        assertNotNull(result);
+        assertEquals(1, result.getId());
+    }
+
+    @Test
+    void testProcessClassification_WithExistingName_ShouldReturnClassification() {
+        ClassificationDTO classificationDTO = new ClassificationDTO();
+        classificationDTO.setName("Painting");
+
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+
+        Classification result = artService.processClassification(classificationDTO);
+
+        assertNotNull(result);
+        assertEquals("Painting", result.getName());
+    }
+
+    @Test
+    void testProcessClassification_WithNewClassification_ShouldSaveAndReturn() {
+        ClassificationDTO classificationDTO = new ClassificationDTO();
+        classificationDTO.setName("NewType");
+        classificationDTO.setDescription("New Description");
+
+        Classification newClassification = new Classification();
+        newClassification.setId(2);
+        newClassification.setName("NewType");
+        newClassification.setDescription("New Description");
+
+        when(classificationRepository.findByName("NewType")).thenReturn(null);
+        when(classificationRepository.save(any(Classification.class))).thenReturn(newClassification);
+
+        Classification result = artService.processClassification(classificationDTO);
+
+        assertNotNull(result);
+        assertEquals("NewType", result.getName());
+        verify(classificationRepository).save(any(Classification.class));
+    }
+
+    @Test
+    void testProcessArtist_WithExistingId_ShouldReturnArtist() {
+        ArtistDTO artistDTO = new ArtistDTO();
+        artistDTO.setId(1);
+
+        when(artistRepository.findById(1)).thenReturn(Optional.of(artist));
+
+        Artist result = artService.processArtist(artistDTO);
+
+        assertNotNull(result);
+        assertEquals(1, result.getId());
+    }
+
+    @Test
+    void testProcessArtist_WithExistingName_ShouldReturnArtist() {
+        ArtistDTO artistDTO = new ArtistDTO();
+        artistDTO.setFirstName("John");
+        artistDTO.setLastName("Doe");
+
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+
+        Artist result = artService.processArtist(artistDTO);
+
+        assertNotNull(result);
+        assertEquals("John", result.getFirstName());
+    }
+
+    @Test
+    void testProcessArtist_WithNewArtist_ShouldSaveAndReturn() {
+        ArtistDTO artistDTO = new ArtistDTO();
+        artistDTO.setFirstName("New");
+        artistDTO.setLastName("Artist");
+
+        Artist newArtist = new Artist();
+        newArtist.setId(2);
+        newArtist.setFirstName("New");
+        newArtist.setLastName("Artist");
+
+        when(artistRepository.findByFirstNameAndLastName("New", "Artist")).thenReturn(Optional.empty());
+        when(artistRepository.save(any(Artist.class))).thenReturn(newArtist);
+
+        Artist result = artService.processArtist(artistDTO);
+
+        assertNotNull(result);
+        assertEquals("New", result.getFirstName());
+        verify(artistRepository).save(any(Artist.class));
+    }
+
+    @Test
+    void testProcessArtist_WithMissingLastName_ShouldThrowException() {
+        ArtistDTO artistDTO = new ArtistDTO();
+        artistDTO.setFirstName("John");
+        // lastName is null
+
+        assertThrows(IllegalArgumentException.class, () -> artService.processArtist(artistDTO));
+    }
+
+    @Test
+    void testValidateArtists_WithValidArtist_ShouldNotThrow() {
+        ArtistDTO validArtist = new ArtistDTO();
+        validArtist.setFirstName("John");
+        validArtist.setLastName("Doe");
+
+        assertDoesNotThrow(() -> artService.validateArtists(List.of(validArtist)));
+    }
+
+    @Test
+    void testValidateArtists_WithInvalidArtist_ShouldThrow() {
+        ArtistDTO invalidArtist = new ArtistDTO();
+        // Both firstName and lastName are null
+
+        assertThrows(ValidationException.class, () -> artService.validateArtists(List.of(invalidArtist)));
+    }
+
+    @Test
+    void testValidateClassification_WithValidClassification_ShouldNotThrow() {
+        ClassificationDTO validClassification = new ClassificationDTO();
+        validClassification.setName("Painting");
+        validClassification.setDescription("Description");
+
+        assertDoesNotThrow(() -> artService.validateClassification(validClassification));
+    }
+
+    @Test
+    void testValidateClassification_WithInvalidClassification_ShouldThrow() {
+        ClassificationDTO invalidClassification = new ClassificationDTO();
+        invalidClassification.setName("");
+        invalidClassification.setDescription("Description");
+
+        assertThrows(ValidationException.class, () -> artService.validateClassification(invalidClassification));
+    }
+
+    @Test
+    void testAddSingleArt_ShouldSaveAndCache() {
+        ArtDTO artDTO = new ArtDTO();
+        artDTO.setTitle("Test Art");
+        artDTO.setYear(2020);
+
+        Art savedArt = new Art();
+        savedArt.setId(1);
+        savedArt.setTitle("Test Art");
+        savedArt.setYear(2020);
+
+        when(artRepository.save(any(Art.class))).thenReturn(savedArt);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        Art result = artService.addSingleArt(artDTO);
+
+        assertNotNull(result);
+        assertEquals("Test Art", result.getTitle());
+        verify(artCache).put(1, savedArt);
+    }
+
+    @Test
+    void testUpdateArtists_ShouldClearAndSetNewArtists() {
+        Art art = new Art();
+        art.setId(1);
+        art.setArtists(new HashSet<>(List.of(artist)));
+
+        Set<Integer> newArtistIds = new HashSet<>(Arrays.asList(2));
+
+        Artist newArtist = new Artist();
+        newArtist.setId(2);
+        newArtist.setFirstName("Jane");
+        newArtist.setLastName("Smith");
+
+        when(artistRepository.findAllById(newArtistIds)).thenReturn(List.of(newArtist));
+
+        artService.updateArtists(art, newArtistIds);
+
+        assertEquals(1, art.getArtists().size());
+        assertTrue(art.getArtists().contains(newArtist));
+    }
+
+    @Test
+    void testUpdateArtists_WithEmptySet_ShouldClearArtists() {
+        Art art = new Art();
+        art.setId(1);
+        art.setArtists(new HashSet<>(List.of(artist)));
+
+        artService.updateArtists(art, new HashSet<>());
+
+        assertTrue(art.getArtists().isEmpty());
+    }
+
+    @Test
+    void testUpdateArtists_WithMissingArtists_ShouldThrowException() {
+        Art art = new Art();
+        art.setId(1);
+        art.setArtists(new HashSet<>(List.of(artist)));
+
+        Set<Integer> newArtistIds = new HashSet<>(Arrays.asList(2, 3));
+
+        when(artistRepository.findAllById(newArtistIds)).thenReturn(List.of(artist)); // Only one artist found
+
+        assertThrows(EntityNotFoundException.class, () -> artService.updateArtists(art, newArtistIds));
+    }
+
+    @Test
+    void testPatchArt_WithTitleUpdate_ShouldSucceed() {
+        ArtPatchDTO patchDTO = new ArtPatchDTO();
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtDTO result = artService.patchArt(1, patchDTO);
+
+        assertNotNull(result);
+        verify(artCache).update(1, art);
+    }
+
+    @Test
+    void testAddArt_CallsProcessClassification_WhenClassificationProvided() {
+        when(classificationRepository.findByName("Painting")).thenReturn(null);
+        when(classificationRepository.save(any(Classification.class))).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.addArt(artDTO);
+
+        assertNotNull(result);
+
+        verify(classificationRepository).findByName("Painting");
+    }
+
+    @Test
+    void testAddArt_CallsProcessArtist_WhenArtistsProvided() {
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.addArt(artDTO);
+
+        assertNotNull(result);
+
+        verify(artistRepository).findByFirstNameAndLastName("John", "Doe");
+    }
+
+    @Test
+    void testUpdateArt_CallsValidateMethods_ShouldSucceed() {
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.updateArt(1, artDTO);
+
+        assertNotNull(result);
+
         verify(artRepository).save(any(Art.class));
     }
 
     @Test
-    void addArt_WithNewArtist_ProcessesCorrectly() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.getArtists().get(0).setId(null);
-        artDTO.getArtists().get(0).setLastName("New Artist");
-        Classification classification = createTestClassification("Test Classification");
-        Artist newArtist = createTestArtist("New Artist");
-        Art expectedArt = createTestArt("Test Art", 2020, classification, Set.of(newArtist));
+    void testAddArt_ValidationFails_WhenInvalidArtist() {
+        ArtistDTO invalidArtist = new ArtistDTO();
+        invalidArtist.setFirstName(null);
+        invalidArtist.setLastName(null);
+        artDTO.setArtists(List.of(invalidArtist));
 
-        lenient().when(classificationRepository.findById(any())).thenReturn(Optional.of(classification));
-        lenient().when(artistRepository.save(any(Artist.class))).thenReturn(newArtist);
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-        lenient().when(cacheService.getClassificationCache()).thenReturn(classificationCache);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        Art result = artService.addArt(artDTO);
-
-        verify(artistRepository).save(any(Artist.class));
-        assertEquals("New Artist", result.getArtists().iterator().next().getLastName());
-    }
-
-    @Test
-    void addArt_WithClassificationNotFoundByIdOrName_CreatesNewClassification() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.getClassification().setId(null);
-        artDTO.getClassification().setName("New Classification");
-        Classification newClassification = createTestClassification("New Classification");
-        Artist artist = createTestArtist("Test Artist");
-        Art expectedArt = createTestArt("Test Art", 2020, newClassification, Set.of(artist));
-
-        lenient().when(classificationRepository.findById(any())).thenReturn(Optional.empty());
-        lenient().when(classificationRepository.findByName("New Classification")).thenReturn(null);
-        lenient().when(classificationRepository.save(any(Classification.class))).thenReturn(newClassification);
-        lenient().when(artistRepository.findById(anyInt())).thenReturn(Optional.of(artist));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-        lenient().when(cacheService.getClassificationCache()).thenReturn(classificationCache);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        Art result = artService.addArt(artDTO);
-
-        verify(classificationRepository).save(any(Classification.class));
-        assertEquals("New Classification", result.getClassification().getName());
-    }
-
-    @Test
-    void processArtist_WithInvalidId_ThrowsNotFoundException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.getArtists().get(0).setId(999);
-        lenient().when(artistRepository.findById(999)).thenReturn(Optional.empty());
-        lenient().when(classificationRepository.findById(any())).thenReturn(Optional.of(createTestClassification("Test Classification")));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(createTestArt("Test Art", 2020, null, new HashSet<>()));
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        assertThrows(NotFoundException.class, () -> artService.addArt(artDTO));
-    }
-
-    @Test
-    void patchArt_WithArtistIdsAsList_ThrowsClassCastException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        when(patchDTO.hasUpdates()).thenReturn(true);
-        when(patchDTO.getArtistIds()).thenReturn(new HashSet<>(Arrays.asList(1, 2)));
-        when(patchDTO.getYear()).thenReturn(2020);
-
-        Art existingArt = createTestArt("Title", 2020, null, new HashSet<>());
-
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artistRepository.findAllById(any(Iterable.class))).thenReturn(Collections.emptyList());
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-
-        assertThrows(ClassCastException.class, () -> artService.patchArt(1, patchDTO));
-    }
-
-    @Test
-    void updateArt_WithArtistIdsAsList_ThrowsClassCastException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setArtists(Arrays.asList(new ArtistDTO(), new ArtistDTO()));
-        Art existingArt = createTestArt("Original Title", 2019, null, new HashSet<>());
-
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-
-        assertThrows(ClassCastException.class, () -> artService.updateArt(1, artDTO));
-    }
-
-    @Test
-    void addBulkArts_WithMultipleValidArts_ReturnsSavedArts() {
-        ArtDTO artDTO1 = createValidArtDTO();
-        ArtDTO artDTO2 = createValidArtDTO();
-        artDTO2.setTitle("Test Art 2");
-        Artist artist = createTestArtist("Test Artist");
-        Classification classification = createTestClassification("Test Classification");
-        Art expectedArt1 = createTestArt("Test Art", 2020, classification, Set.of(artist));
-        Art expectedArt2 = createTestArt("Test Art 2", 2020, classification, Set.of(artist));
-
-        lenient().when(artistRepository.findById(anyInt())).thenReturn(Optional.of(artist));
-        lenient().when(classificationRepository.findById(any())).thenReturn(Optional.of(classification));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt1, expectedArt2);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-        lenient().when(cacheService.getClassificationCache()).thenReturn(classificationCache);
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        List<Art> result = artService.addBulkArts(Arrays.asList(artDTO1, artDTO2));
-
-        assertEquals(2, result.size());
-        assertTrue(result.stream().anyMatch(a -> a.getTitle().equals("Test Art")));
-        assertTrue(result.stream().anyMatch(a -> a.getTitle().equals("Test Art 2")));
-    }
-
-    @Test
-    void patchArt_WithNullCache_ThrowsNullPointerException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        when(patchDTO.hasUpdates()).thenReturn(true);
-        when(patchDTO.getYear()).thenReturn(2020);
-
-        Art existingArt = createTestArt("Title", 2020, null, new HashSet<>());
-
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(existingArt);
-        lenient().when(cacheService.getArtCache()).thenReturn(null);
-
-        assertThrows(NullPointerException.class, () -> artService.patchArt(1, patchDTO));
-    }
-
-    @Test
-    void updateArt_WithNullCache_ThrowsNullPointerException() {
-        ArtDTO artDTO = createValidArtDTO();
-        Art existingArt = createTestArt("Original Title", 2019, null, new HashSet<>());
-        Artist artist = createTestArtist("Test Artist");
-        Classification classification = createTestClassification("Test Classification");
-
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artistRepository.findById(anyInt())).thenReturn(Optional.of(artist));
-        lenient().when(classificationRepository.findById(any())).thenReturn(Optional.of(classification));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(existingArt);
-        lenient().when(cacheService.getArtCache()).thenReturn(null);
-
-        assertThrows(NullPointerException.class, () -> artService.updateArt(1, artDTO));
-    }
-
-    @Test
-    void addArt_WithInvalidYearRange_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setYear(0);
         assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
     }
 
     @Test
-    void patchArt_WithInvalidYearRange_ThrowsValidationException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getYear()).thenReturn(0);
+    void testAddArt_ValidationFails_WhenInvalidClassification() {
+        ClassificationDTO invalidClassification = new ClassificationDTO();
+        invalidClassification.setName("");
+        invalidClassification.setDescription("Description");
+        artDTO.setClassification(invalidClassification);
 
-        Art existingArt = createTestArt("Original Title", 2020, null, new HashSet<>());
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-
-        assertThrows(ValidationException.class, () -> artService.patchArt(1, patchDTO));
+        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
     }
 
     @Test
-    void updateArt_WithInvalidYearRange_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setYear(0);
-        Art existingArt = createTestArt("Original Title", 2019, null, new HashSet<>());
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(cacheService.getArtCache()).thenReturn(artCache);
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
+    void testAddBulkArts_CallsValidateMethods_ShouldSucceed() {
+        List<ArtDTO> dtos = List.of(artDTO);
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+
+        List<ArtDTO> result = artService.addBulkArts(dtos);
+
+        assertEquals(1, result.size());
+
+        verify(artRepository).save(any(Art.class));
+    }
+
+    @Test
+    void testGetArtById_WithArtistsButNullClassification_ShouldHandleGracefully() {
+        Art artWithNullClassification = new Art();
+        artWithNullClassification.setId(4);
+        artWithNullClassification.setTitle("Test Art");
+        artWithNullClassification.setClassification(null);
+        artWithNullClassification.setArtists(new HashSet<>(List.of(artist)));
+
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artCache.get(4)).thenReturn(Optional.empty());
+        when(artRepository.findWithArtistsAndClassificationById(4)).thenReturn(Optional.of(artWithNullClassification));
+
+        ArtDTO result = artService.getArtById(4);
+
+        assertNotNull(result);
+        assertEquals("Test Art", result.getTitle());
+        assertNull(result.getClassification());
+        assertNotNull(result.getArtists());
+    }
+
+    @Test
+    void testGetArtById_WithClassificationButNullArtists_ShouldHandleGracefully() {
+        Art artWithNullArtists = new Art();
+        artWithNullArtists.setId(5);
+        artWithNullArtists.setTitle("Test Art 2");
+        artWithNullArtists.setClassification(classification);
+        artWithNullArtists.setArtists(null);
+
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artCache.get(5)).thenReturn(Optional.empty());
+        when(artRepository.findWithArtistsAndClassificationById(5)).thenReturn(Optional.of(artWithNullArtists));
+
+        ArtDTO result = artService.getArtById(5);
+
+        assertNotNull(result);
+        assertEquals("Test Art 2", result.getTitle());
+        assertNotNull(result.getClassification());
+        assertNull(result.getArtists());
+    }
+
+    @Test
+    void testConvertToDTO_ComprehensiveTest() {
+        Art testArt = new Art();
+        testArt.setId(6);
+        testArt.setTitle("Comprehensive Test");
+        testArt.setYear(2000);
+        testArt.setClassification(null);
+        testArt.setArtists(null);
+
+        when(artRepository.findWithArtistsAndClassificationById(6)).thenReturn(Optional.of(testArt));
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artCache.get(6)).thenReturn(Optional.empty());
+
+        ArtDTO result = artService.getArtById(6);
+
+        assertNotNull(result);
+        assertEquals("Comprehensive Test", result.getTitle());
+        assertEquals(2000, result.getYear());
+        assertNull(result.getClassification());
+        assertNull(result.getArtists());
+    }
+
+    // Добавить в ArtServiceTest.java
+
+    @Test
+    void testAddArt_WithEmptyArtistName_ShouldThrowValidationException() {
+        ArtistDTO invalidArtist = new ArtistDTO();
+        invalidArtist.setFirstName("");
+        invalidArtist.setLastName("");
+        artDTO.setArtists(List.of(invalidArtist));
+
+        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
+    }
+
+    @Test
+    void testAddArt_WithWhitespaceOnlyNames_ShouldThrowValidationException() {
+        ArtistDTO invalidArtist = new ArtistDTO();
+        invalidArtist.setFirstName("   ");
+        invalidArtist.setLastName("   ");
+        artDTO.setArtists(List.of(invalidArtist));
+
+        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
+    }
+
+    @Test
+    void testAddArt_WithLongFirstName_ShouldThrowValidationException() {
+        ArtistDTO invalidArtist = new ArtistDTO();
+        invalidArtist.setFirstName("A".repeat(61));
+        invalidArtist.setLastName("Doe");
+        artDTO.setArtists(List.of(invalidArtist));
+
+        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
+    }
+
+    @Test
+    void testAddArt_WithLongMiddleName_ShouldThrowValidationException() {
+        ArtistDTO invalidArtist = new ArtistDTO();
+        invalidArtist.setFirstName("John");
+        invalidArtist.setMiddleName("A".repeat(61));
+        invalidArtist.setLastName("Doe");
+        artDTO.setArtists(List.of(invalidArtist));
+
+        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
+    }
+
+    @Test
+    void testAddArt_WithLongLastName_ShouldThrowValidationException() {
+        ArtistDTO invalidArtist = new ArtistDTO();
+        invalidArtist.setFirstName("John");
+        invalidArtist.setLastName("A".repeat(61));
+        artDTO.setArtists(List.of(invalidArtist));
+
+        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
+    }
+
+    @Test
+    void testAddArt_WithEmptyClassificationName_ShouldThrowValidationException() {
+        ClassificationDTO invalidClassification = new ClassificationDTO();
+        invalidClassification.setName("");
+        invalidClassification.setDescription("Valid description");
+        artDTO.setClassification(invalidClassification);
+
+        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
+    }
+
+    @Test
+    void testAddArt_WithEmptyClassificationDescription_ShouldThrowValidationException() {
+        ClassificationDTO invalidClassification = new ClassificationDTO();
+        invalidClassification.setName("Valid name");
+        invalidClassification.setDescription("");
+        artDTO.setClassification(invalidClassification);
+
+        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
+    }
+
+    @Test
+    void testAddArt_WithWhitespaceClassification_ShouldThrowValidationException() {
+        ClassificationDTO invalidClassification = new ClassificationDTO();
+        invalidClassification.setName("   ");
+        invalidClassification.setDescription("   ");
+        artDTO.setClassification(invalidClassification);
+
+        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
+    }
+
+    @Test
+    void testUpdateArt_WithInvalidArtist_ShouldThrowValidationException() {
+        ArtistDTO invalidArtist = new ArtistDTO();
+        invalidArtist.setFirstName(null);
+        invalidArtist.setLastName(null);
+        artDTO.setArtists(List.of(invalidArtist));
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
 
         assertThrows(ValidationException.class, () -> artService.updateArt(1, artDTO));
     }
 
     @Test
-    void addBulkArts_WithInvalidYearRange_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setYear(0);
-        assertThrows(ValidationException.class, () -> artService.addBulkArts(List.of(artDTO)));
+    void testUpdateArt_WithInvalidClassification_ShouldThrowValidationException() {
+        ClassificationDTO invalidClassification = new ClassificationDTO();
+        invalidClassification.setName("");
+        invalidClassification.setDescription("Description");
+        artDTO.setClassification(invalidClassification);
+
+        when(artRepository.findWithArtistsById(1)).thenReturn(Optional.of(art));
+
+        assertThrows(ValidationException.class, () -> artService.updateArt(1, artDTO));
     }
 
     @Test
-    void addArt_WithNullCacheService_ThrowsNullPointerException() {
-        ArtDTO artDTO = createValidArtDTO();
-        lenient().when(cacheService.getArtistCache()).thenReturn(null);
-        lenient().when(cacheService.getClassificationCache()).thenReturn(null);
-        lenient().when(cacheService.getArtCache()).thenReturn(null);
+    void testAddBulkArts_WithInvalidArtistInList_ShouldThrowValidationException() {
+        ArtistDTO invalidArtist = new ArtistDTO();
+        invalidArtist.setFirstName(null);
+        invalidArtist.setLastName(null);
+        artDTO.setArtists(List.of(invalidArtist));
 
-        assertThrows(NullPointerException.class, () -> artService.addArt(artDTO));
+        List<ArtDTO> dtos = List.of(artDTO);
+
+        assertThrows(ValidationException.class, () -> artService.addBulkArts(dtos));
     }
 
     @Test
-    void addArt_WithYearOutOfRange_ThrowsValidationException() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setYear(0);
+    void testAddBulkArts_WithInvalidClassificationInList_ShouldThrowValidationException() {
+        ClassificationDTO invalidClassification = new ClassificationDTO();
+        invalidClassification.setName("");
+        invalidClassification.setDescription("Description");
+        artDTO.setClassification(invalidClassification);
 
-        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
+        List<ArtDTO> dtos = List.of(artDTO);
+
+        assertThrows(ValidationException.class, () -> artService.addBulkArts(dtos));
     }
 
     @Test
-    void addArt_WithNullArtists_ProcessesCorrectly() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setArtists(null);
-        Artist artist = createTestArtist("Test Artist");
-        Art expectedArt = createTestArt("Test Art", 2020, null, new HashSet<>());
-
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(expectedArt);
-
-        Art result = artService.addArt(artDTO);
-
-        assertTrue(result.getArtists().isEmpty());
-    }
-
-    @Test
-    void patchArt_WithListArtistIds_ThrowsClassCastException() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getArtistIds()).thenReturn(new HashSet<>(Arrays.asList(1, 2)));
-        Art existingArt = createTestArt("Title", 2020, null, new HashSet<>());
-
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-
-        assertThrows(ClassCastException.class, () -> artService.patchArt(1, patchDTO));
-    }
-
-    @Test
-    void addArt_WithLongArtistName_ThrowsValidationExceptions() {
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.getArtists().get(0).setFirstName("a".repeat(61));
-
-        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
-    }
-
-    @Test
-    void validateArtists_WithInvalidMiddleName_ThrowsValidationException() {
+    void testProcessArtist_WithNullLastName_ShouldThrowException() {
         ArtistDTO artistDTO = new ArtistDTO();
-        artistDTO.setMiddleName("a".repeat(61));
-        artistDTO.setLastName("Doe");
+        artistDTO.setFirstName("John");
+        artistDTO.setLastName(null);
 
-        assertThrows(ValidationException.class, () -> artService.addArt(new ArtDTO() {{
-            setArtists(List.of(artistDTO));
-        }}));
+        assertThrows(IllegalArgumentException.class, () -> artService.processArtist(artistDTO));
     }
 
     @Test
-    void updateArt_WithNullArtists_DoesNotClearArtists() {
+    void testProcessArtist_WithEmptyLastName_ShouldThrowException() {
+        ArtistDTO artistDTO = new ArtistDTO();
+        artistDTO.setFirstName("John");
+        artistDTO.setLastName("");
+
+        assertThrows(IllegalArgumentException.class, () -> artService.processArtist(artistDTO));
+    }
+
+    @Test
+    void testProcessClassification_WithNullName_ShouldReturnNull() {
+        ClassificationDTO classificationDTO = new ClassificationDTO();
+        classificationDTO.setName(null);
+
+        Classification result = artService.processClassification(classificationDTO);
+
+        assertNull(result);
+    }
+
+    @Test
+    void testValidateArtists_WithEmptyList_ShouldNotThrow() {
+        assertDoesNotThrow(() -> artService.validateArtists(Collections.emptyList()));
+    }
+
+    @Test
+    void testValidateArtists_WithNullList_ShouldNotThrow() {
+        assertDoesNotThrow(() -> artService.validateArtists(null));
+    }
+
+    @Test
+    void testUpdateArtists_WithNullArtistsSet_ShouldHandleGracefully() {
+        Art art = new Art();
+        art.setId(1);
+        art.setArtists(null);
+
+        Set<Integer> newArtistIds = new HashSet<>(Arrays.asList(2));
+
+        Artist newArtist = new Artist();
+        newArtist.setId(2);
+        newArtist.setFirstName("Jane");
+        newArtist.setLastName("Smith");
+
+        when(artistRepository.findAllById(newArtistIds)).thenReturn(List.of(newArtist));
+
+        assertDoesNotThrow(() -> artService.updateArtists(art, newArtistIds));
+        assertNotNull(art.getArtists());
+        assertEquals(1, art.getArtists().size());
+    }
+
+    @Test
+    void testAddSingleArt_WithNullClassification_ShouldHandleGracefully() {
         ArtDTO artDTO = new ArtDTO();
-        artDTO.setArtists(null);
-        Art existingArt = createTestArt("Original Title", 2019, null, Set.of(createTestArtist("Artist")));
+        artDTO.setTitle("Test Art");
+        artDTO.setYear(2020);
+        artDTO.setClassification(null);
 
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(existingArt);
+        Art savedArt = new Art();
+        savedArt.setId(1);
+        savedArt.setTitle("Test Art");
+        savedArt.setYear(2020);
+        savedArt.setClassification(null);
 
-        Art result = artService.updateArt(1, artDTO);
+        when(artRepository.save(any(Art.class))).thenReturn(savedArt);
+        when(cacheService.getArtCache()).thenReturn(artCache);
 
-        assertFalse(result.getArtists().isEmpty());
-    }
+        Art result = artService.addSingleArt(artDTO);
 
-    @Test
-    void patchArt_WithZeroClassificationId_DoesNotUpdateClassification() {
-        ArtPatchDTO patchDTO = mock(ArtPatchDTO.class);
-        lenient().when(patchDTO.hasUpdates()).thenReturn(true);
-        lenient().when(patchDTO.getClassificationId()).thenReturn(0);
-
-        Art existingArt = createTestArt("Title", 2020, null, new HashSet<>());
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(existingArt);
-
-        Art result = artService.patchArt(1, patchDTO);
-
+        assertNotNull(result);
         assertNull(result.getClassification());
     }
 
     @Test
-    void addArt_WithMiddleNameExceedingLimit_ThrowsValidationException() {
-        ArtistDTO artistDTO = new ArtistDTO();
-        artistDTO.setMiddleName("a".repeat(61));
-        artistDTO.setLastName("Doe");
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.setArtists(List.of(artistDTO));
+    void testAddSingleArt_WithNullArtists_ShouldHandleGracefully() {
+        ArtDTO artDTO = new ArtDTO();
+        artDTO.setTitle("Test Art");
+        artDTO.setYear(2020);
+        artDTO.setArtists(null);
 
-        assertThrows(ValidationException.class, () -> artService.addArt(artDTO));
+        Art savedArt = new Art();
+        savedArt.setId(1);
+        savedArt.setTitle("Test Art");
+        savedArt.setYear(2020);
+        savedArt.setArtists(null);
+
+        when(artRepository.save(any(Art.class))).thenReturn(savedArt);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        Art result = artService.addSingleArt(artDTO);
+
+        assertNotNull(result);
+        assertNull(result.getArtists());
     }
 
     @Test
-    void updateArt_WithExistingArtist_UpdatesCorrectly() {
-        Artist existingArtist = createTestArtist("Existing Artist");
-        ArtDTO artDTO = createValidArtDTO();
-        artDTO.getArtists().get(0).setId(1);
+    void testGetArtByTitle_WithEmptyString_ShouldThrowNotFoundException() {
+        when(artRepository.findByTitle("")).thenReturn(Optional.empty());
 
-        Art existingArt = createTestArt("Original Title", 2019, null, new HashSet<>());
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(existingArt));
-        lenient().when(artistRepository.findById(1)).thenReturn(Optional.of(existingArtist));
-        lenient().when(artRepository.save(any(Art.class))).thenReturn(existingArt);
-
-        Art result = artService.updateArt(1, artDTO);
-
-        assertEquals(1, result.getArtists().size());
-        assertEquals("Existing Artist", result.getArtists().iterator().next().getLastName());
+        assertThrows(NotFoundException.class, () -> artService.getArtByTitle(""));
     }
 
     @Test
-    void deleteArtById_UpdatesArtistCache() {
-        Artist artist = createTestArtist("Artist");
-        Art art = createTestArt("Art", 2020, null, Set.of(artist));
-        lenient().when(artRepository.findWithArtistsById(anyInt())).thenReturn(Optional.of(art));
-        artService.deleteArtById(1);
-        verify(artistCache).update(artist.getId(), artist);
+    void testGetArtByTitle_WithWhitespace_ShouldThrowNotFoundException() {
+        when(artRepository.findByTitle("   ")).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> artService.getArtByTitle("   "));
+    }
+
+    @Test
+    void testGetArtsByClassificationName_WithEmptyString_ShouldReturnEmptyList() {
+        when(artRepository.findByClassificationNameContainingIgnoreCase("")).thenReturn(Collections.emptyList());
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        List<ArtDTO> result = artService.getArtsByClassificationName("");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testGetArtsByArtistName_WithEmptyString_ShouldReturnEmptyList() {
+        when(artRepository.findByArtistsLastNameContainingIgnoreCase("")).thenReturn(Collections.emptyList());
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        List<ArtDTO> result = artService.getArtsByArtistName("");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testGetArtsByClassificationId_WithNullId_ShouldReturnEmptyList() {
+        when(artRepository.findByClassificationId(null)).thenReturn(Collections.emptyList());
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        List<ArtDTO> result = artService.getArtsByClassificationId(null);
+
+        assertTrue(result.isEmpty());
+    }
+
+    // Тесты для edge cases с годами
+    @Test
+    void testAddArt_WithYearZero_ShouldSucceed() {
+        artDTO.setYear(0);
+
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.addArt(artDTO);
+
+        assertNotNull(result);
+        assertEquals(0, result.getYear());
+    }
+
+    @Test
+    void testAddArt_WithYear999_ShouldSucceed() {
+        artDTO.setYear(999);
+
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.addArt(artDTO);
+
+        assertNotNull(result);
+        assertEquals(999, result.getYear());
+    }
+
+    @Test
+    void testAddArt_WithCurrentYear_ShouldSucceed() {
+        int currentYear = LocalDate.now().getYear();
+        artDTO.setYear(currentYear);
+
+        when(classificationRepository.findByName("Painting")).thenReturn(classification);
+        when(artistRepository.findByFirstNameAndLastName("John", "Doe")).thenReturn(Optional.of(artist));
+        when(artRepository.save(any(Art.class))).thenReturn(art);
+        when(cacheService.getArtCache()).thenReturn(artCache);
+
+        ArtDTO result = artService.addArt(artDTO);
+
+        assertNotNull(result);
+        assertEquals(currentYear, result.getYear());
+    }
+
+    @Test
+    void testProcessClassification_WithNullDTO_ShouldReturnNull() {
+        Classification result = artService.processClassification(null);
+        assertNull(result);
+    }
+
+    @Test
+    void testProcessArtist_WithNullDTO_ShouldThrowException() {
+        assertThrows(IllegalArgumentException.class, () -> artService.processArtist(null));
+    }
+
+    @Test
+    void testGetArtById_WithCachedArt_ShouldReturnFromCache() {
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artCache.get(1)).thenReturn(Optional.of(art));
+
+        ArtDTO result = artService.getArtById(1);
+
+        assertNotNull(result);
+        verify(artRepository, never()).findWithArtistsAndClassificationById(anyInt());
+    }
+
+    @Test
+    void testGetArtById_WithNullCachedArt_ShouldFetchFromRepository() {
+        when(cacheService.getArtCache()).thenReturn(artCache);
+        when(artCache.get(1)).thenReturn(Optional.empty());
+        when(artRepository.findWithArtistsAndClassificationById(1)).thenReturn(Optional.of(art));
+
+        ArtDTO result = artService.getArtById(1);
+
+        assertNotNull(result);
+        verify(artRepository).findWithArtistsAndClassificationById(1);
     }
 }

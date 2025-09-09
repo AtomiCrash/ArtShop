@@ -7,29 +7,29 @@ import com.example.artshop.service.cache.EntityCache;
 import java.util.List;
 
 public interface ArtServiceInterface {
-    List<Art> getArtsByArtistName(String artistName);
+    List<ArtDTO> getArtsByArtistName(String artistName);
 
-    Art addArt(ArtDTO artDTO);
+    ArtDTO addArt(ArtDTO artDTO);
 
-    Art patchArt(int id, ArtPatchDTO artPatchDTO);
+    ArtDTO patchArt(int id, ArtPatchDTO artPatchDTO);
 
-    List<Art> getAllArts();
+    List<ArtDTO> getAllArts();
 
-    Art getArtById(int id);
+    ArtDTO getArtById(int id);
 
-    Art updateArt(int id, ArtDTO artDTO);
+    ArtDTO updateArt(int id, ArtDTO artDTO);
 
-    List<Art> getArtsByClassificationId(Integer classificationId);
+    List<ArtDTO> getArtsByClassificationId(Integer classificationId);
 
-    List<Art> getArtsByClassificationName(String classificationName);
+    List<ArtDTO> getArtsByClassificationName(String classificationName);
 
     void deleteArtById(int id);
 
-    Art getArtByTitle(String title);
+    ArtDTO getArtByTitle(String title);
 
     String getCacheInfo();
 
     EntityCache<Art> getArtCache();
 
-    List<Art> addBulkArts(List<ArtDTO> artDTOs);
+    List<ArtDTO> addBulkArts(List<ArtDTO> artDTOs);
 }

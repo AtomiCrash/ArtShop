@@ -15,10 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,240 +38,302 @@ class ArtistServiceTest {
 
     private Artist artist;
     private ArtistDTO artistDTO;
-    private ArtistPatchDTO artistPatchDTO;
 
     @BeforeEach
     void setUp() {
-        lenient().when(cacheService.getArtistCache()).thenReturn(artistCache);
-
-        artist = new Artist("Vincent", "van Gogh");
+        artist = new Artist();
+        artist.setId(1);
+        artist.setFirstName("John");
+        artist.setLastName("Doe");
 
         artistDTO = new ArtistDTO();
-        artistDTO.setFirstName("Vincent");
-        artistDTO.setLastName("van Gogh");
-
-        artistPatchDTO = new ArtistPatchDTO();
-        artistPatchDTO.setFirstName("Updated");
+        artistDTO.setId(1);
+        artistDTO.setFirstName("John");
+        artistDTO.setLastName("Doe");
     }
 
     @Test
-    void createArtist_ValidData_ReturnsArtist() {
-        Artist savedArtist = new Artist("Vincent", "van Gogh");
-        lenient().when(artistRepository.save(any(Artist.class))).thenReturn(savedArtist);
+    void testCreateArtist_Success() {
+        when(artistRepository.save(any(Artist.class))).thenReturn(artist);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
 
-        Artist result = artistService.createArtist(artistDTO);
+        ArtistDTO result = artistService.createArtist(artistDTO);
 
         assertNotNull(result);
-        assertEquals("Vincent", result.getFirstName());
-        assertEquals("van Gogh", result.getLastName());
-        verify(artistCache).put(anyInt(), eq(savedArtist));
+        assertEquals("John", result.getFirstName());
+        assertEquals("Doe", result.getLastName());
+        verify(artistCache).put(1, artist);
     }
 
     @Test
-    void createArtist_NullData_ThrowsValidationException() {
+    void testCreateArtist_NullData() {
         assertThrows(ValidationException.class, () -> artistService.createArtist(null));
     }
 
     @Test
-    void createArtist_InvalidFirstName_ThrowsValidationException() {
-        artistDTO.setFirstName(null);
+    void testCreateArtist_NoName() {
+        ArtistDTO invalidDTO = new ArtistDTO();
+        assertThrows(ValidationException.class, () -> artistService.createArtist(invalidDTO));
+    }
+
+    @Test
+    void testCreateArtist_FirstNameTooLong() {
+        artistDTO.setFirstName("A".repeat(61));
         assertThrows(ValidationException.class, () -> artistService.createArtist(artistDTO));
     }
 
     @Test
-    void createArtist_InvalidLastName_ThrowsValidationException() {
+    void testCreateArtist_MiddleNameTooLong() {
+        artistDTO.setMiddleName("A".repeat(61));
+        assertThrows(ValidationException.class, () -> artistService.createArtist(artistDTO));
+    }
+
+    @Test
+    void testCreateArtist_LastNameTooLong() {
+        artistDTO.setLastName("A".repeat(61));
+        assertThrows(ValidationException.class, () -> artistService.createArtist(artistDTO));
+    }
+
+    @Test
+    void testCreateArtist_OnlyFirstName() {
         artistDTO.setLastName(null);
-        assertThrows(ValidationException.class, () -> artistService.createArtist(artistDTO));
-    }
+        when(artistRepository.save(any(Artist.class))).thenReturn(artist);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
 
-    @Test
-    void createArtist_FirstNameTooLong_ThrowsValidationException() {
-        artistDTO.setFirstName("a".repeat(61));
-        assertThrows(ValidationException.class, () -> artistService.createArtist(artistDTO));
-    }
-
-    @Test
-    void createArtist_MiddleNameTooLong_ThrowsValidationException() {
-        artistDTO.setMiddleName("a".repeat(61));
-        assertThrows(ValidationException.class, () -> artistService.createArtist(artistDTO));
-    }
-
-    @Test
-    void createArtist_LastNameTooLong_ThrowsValidationException() {
-        artistDTO.setLastName("a".repeat(61));
-        assertThrows(ValidationException.class, () -> artistService.createArtist(artistDTO));
-    }
-
-    @Test
-    void getArtistById_FoundInCache_ReturnsArtist() {
-        Artist cachedArtist = new Artist("Vincent", "van Gogh");
-        lenient().when(artistCache.get(anyInt())).thenReturn(Optional.of(cachedArtist));
-
-        Optional<Artist> result = artistService.getArtistById(1);
-
-        assertTrue(result.isPresent());
-        assertEquals("Vincent", result.get().getFirstName());
-        verify(artistRepository, never()).findById(anyInt());
-    }
-
-    @Test
-    void getArtistById_NotFoundInCache_FetchesFromRepository() {
-        Artist dbArtist = new Artist("Vincent", "van Gogh");
-        lenient().when(artistCache.get(anyInt())).thenReturn(Optional.empty());
-        lenient().when(artistRepository.findById(anyInt())).thenReturn(Optional.of(dbArtist));
-
-        Optional<Artist> result = artistService.getArtistById(1);
-
-        assertTrue(result.isPresent());
-        assertEquals("Vincent", result.get().getFirstName());
-        verify(artistCache).put(anyInt(), eq(dbArtist));
-    }
-
-    @Test
-    void getArtistById_NotFound_ReturnsEmpty() {
-        lenient().when(artistCache.get(anyInt())).thenReturn(Optional.empty());
-        lenient().when(artistRepository.findById(anyInt())).thenReturn(Optional.empty());
-
-        Optional<Artist> result = artistService.getArtistById(1);
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void updateArtist_ValidData_ReturnsUpdatedArtist() {
-        Artist existingArtist = new Artist("Old", "Artist");
-        lenient().when(artistRepository.findWithArtsById(anyInt())).thenReturn(Optional.of(existingArtist));
-        lenient().when(artistRepository.save(any(Artist.class))).thenReturn(existingArtist);
-
-        Artist result = artistService.updateArtist(1, artistDTO);
-
+        ArtistDTO result = artistService.createArtist(artistDTO);
         assertNotNull(result);
-        assertEquals("Vincent", result.getFirstName());
-        assertEquals("van Gogh", result.getLastName());
-        verify(artistCache).update(anyInt(), eq(existingArtist));
     }
 
     @Test
-    void updateArtist_NotFound_ThrowsNotFoundException() {
-        lenient().when(artistRepository.findWithArtsById(anyInt())).thenReturn(Optional.empty());
+    void testCreateArtist_OnlyLastName() {
+        artistDTO.setFirstName(null);
+        when(artistRepository.save(any(Artist.class))).thenReturn(artist);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtistDTO result = artistService.createArtist(artistDTO);
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGetArtistById_FoundInCache() {
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+        when(artistCache.get(1)).thenReturn(Optional.of(artist));
+
+        Optional<ArtistDTO> result = artistService.getArtistById(1);
+
+        assertTrue(result.isPresent());
+        assertEquals("John", result.get().getFirstName());
+    }
+
+    @Test
+    void testGetArtistById_NotFoundInCacheFoundInRepo() {
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+        when(artistCache.get(1)).thenReturn(Optional.empty());
+        when(artistRepository.findById(1)).thenReturn(Optional.of(artist));
+
+        Optional<ArtistDTO> result = artistService.getArtistById(1);
+
+        assertTrue(result.isPresent());
+        verify(artistCache).put(1, artist);
+    }
+
+    @Test
+    void testGetArtistById_NotFound() {
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+        when(artistCache.get(1)).thenReturn(Optional.empty());
+        when(artistRepository.findById(1)).thenReturn(Optional.empty());
+
+        Optional<ArtistDTO> result = artistService.getArtistById(1);
+
+        assertFalse(result.isPresent());
+    }
+
+    @Test
+    void testUpdateArtist_Success() {
+        when(artistRepository.findWithArtsById(1)).thenReturn(Optional.of(artist));
+        when(artistRepository.save(any(Artist.class))).thenReturn(artist);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtistDTO updatedDTO = new ArtistDTO();
+        updatedDTO.setFirstName("Jane");
+        updatedDTO.setLastName("Smith");
+
+        ArtistDTO result = artistService.updateArtist(1, updatedDTO);
+
+        assertEquals("Jane", result.getFirstName());
+        verify(artistCache).update(1, artist);
+    }
+
+    @Test
+    void testUpdateArtist_NotFound() {
+        when(artistRepository.findWithArtsById(1)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> artistService.updateArtist(1, artistDTO));
     }
 
     @Test
-    void deleteArtist_ValidId_DeletesArtist() {
-        Artist artistToDelete = new Artist("ToDelete", "Artist");
-        lenient().when(artistRepository.findWithArtsById(anyInt())).thenReturn(Optional.of(artistToDelete));
+    void testDeleteArtist_Success() {
+        Artist artistWithArts = new Artist();
+        artistWithArts.setId(1);
+        artistWithArts.setArts(new HashSet<>());
+
+        when(artistRepository.findWithArtsById(1)).thenReturn(Optional.of(artistWithArts));
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
 
         artistService.deleteArtist(1);
 
-        verify(artistRepository).delete(artistToDelete);
-        verify(artistCache).evict(anyInt());
+        verify(artistRepository).delete(artistWithArts);
+        verify(artistCache).evict(1);
     }
 
     @Test
-    void deleteArtist_NotFound_ThrowsNotFoundException() {
-        lenient().when(artistRepository.findWithArtsById(anyInt())).thenReturn(Optional.empty());
+    void testDeleteArtist_NotFound() {
+        when(artistRepository.findWithArtsById(1)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> artistService.deleteArtist(1));
     }
 
     @Test
-    void patchArtist_ValidData_ReturnsPatchedArtist() {
-        Artist existingArtist = new Artist("Original", "Artist");
-        lenient().when(artistRepository.findWithArtsById(anyInt())).thenReturn(Optional.of(existingArtist));
-        lenient().when(artistRepository.save(any(Artist.class))).thenReturn(existingArtist);
+    void testSearchArtists_ByFirstName() {
+        when(artistRepository.findByFirstNameContainingIgnoreCase("John")).thenReturn(List.of(artist));
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
 
-        Artist result = artistService.patchArtist(1, artistPatchDTO);
-
-        assertNotNull(result);
-        assertEquals("Updated", result.getFirstName());
-        verify(artistCache).update(anyInt(), eq(existingArtist));
-    }
-
-    @Test
-    void patchArtist_NoUpdates_ThrowsIllegalArgumentException() {
-        ArtistPatchDTO emptyPatch = new ArtistPatchDTO();
-        assertThrows(IllegalArgumentException.class, () -> artistService.patchArtist(1, emptyPatch));
-    }
-
-    @Test
-    void patchArtist_NotFound_ThrowsNotFoundException() {
-        lenient().when(artistRepository.findWithArtsById(anyInt())).thenReturn(Optional.empty());
-
-        assertThrows(NotFoundException.class, () -> artistService.patchArtist(1, artistPatchDTO));
-    }
-
-    @Test
-    void searchArtists_ByFirstName_ReturnsList() {
-        lenient().when(artistRepository.findByFirstNameContainingIgnoreCase("Vincent"))
-                .thenReturn(Collections.singletonList(artist));
-
-        List<Artist> result = artistService.searchArtists("Vincent", null);
+        List<ArtistDTO> result = artistService.searchArtists("John", null);
 
         assertEquals(1, result.size());
-        assertEquals("Vincent", result.get(0).getFirstName());
+        verify(artistCache).put(1, artist);
     }
 
     @Test
-    void searchArtists_ByLastName_ReturnsList() {
-        lenient().when(artistRepository.findByLastNameContainingIgnoreCase("van Gogh"))
-                .thenReturn(Collections.singletonList(artist));
+    void testSearchArtists_ByLastName() {
+        when(artistRepository.findByLastNameContainingIgnoreCase("Doe")).thenReturn(List.of(artist));
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
 
-        List<Artist> result = artistService.searchArtists(null, "van Gogh");
-
-        assertEquals(1, result.size());
-        assertEquals("van Gogh", result.get(0).getLastName());
-    }
-
-    @Test
-    void searchArtists_ByBothNames_ReturnsList() {
-        lenient().when(artistRepository.findByFirstNameContainingIgnoreCaseAndLastNameContainingIgnoreCase("Vincent", "van Gogh"))
-                .thenReturn(Collections.singletonList(artist));
-
-        List<Artist> result = artistService.searchArtists("Vincent", "van Gogh");
+        List<ArtistDTO> result = artistService.searchArtists(null, "Doe");
 
         assertEquals(1, result.size());
     }
 
     @Test
-    void searchArtists_NoParams_ReturnsEmptyList() {
-        List<Artist> result = artistService.searchArtists(null, null);
+    void testSearchArtists_ByBothNames() {
+        when(artistRepository.findByFirstNameContainingIgnoreCaseAndLastNameContainingIgnoreCase("John", "Doe"))
+                .thenReturn(List.of(artist));
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        List<ArtistDTO> result = artistService.searchArtists("John", "Doe");
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void testSearchArtists_NoNames() {
+        List<ArtistDTO> result = artistService.searchArtists(null, null);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testPatchArtist_Success() {
+        ArtistPatchDTO patchDTO = new ArtistPatchDTO();
+        patchDTO.setFirstName("Jane");
+
+        when(artistRepository.findWithArtsById(1)).thenReturn(Optional.of(artist));
+        when(artistRepository.save(any(Artist.class))).thenReturn(artist);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtistDTO result = artistService.patchArtist(1, patchDTO);
+
+        assertEquals("Jane", result.getFirstName());
+        verify(artistCache).update(1, artist);
+    }
+
+    @Test
+    void testPatchArtist_NoUpdates() {
+        ArtistPatchDTO patchDTO = new ArtistPatchDTO();
+
+        assertThrows(IllegalArgumentException.class, () -> artistService.patchArtist(1, patchDTO));
+    }
+
+    @Test
+    void testPatchArtist_NotFound() {
+        ArtistPatchDTO patchDTO = new ArtistPatchDTO();
+        patchDTO.setFirstName("Jane");
+
+        when(artistRepository.findWithArtsById(1)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> artistService.patchArtist(1, patchDTO));
+    }
+
+    @Test
+    void testAddBulkArtists_Success() {
+        List<ArtistDTO> dtos = List.of(artistDTO);
+        when(artistRepository.save(any(Artist.class))).thenReturn(artist);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        List<ArtistDTO> result = artistService.addBulkArtists(dtos);
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void testAddBulkArtists_EmptyList() {
+        assertThrows(ValidationException.class, () -> artistService.addBulkArtists(List.of()));
+    }
+
+    @Test
+    void testAddBulkArtists_NullList() {
+        assertThrows(ValidationException.class, () -> artistService.addBulkArtists(null));
+    }
+
+    @Test
+    void testAddBulkArtists_TooManyItems() {
+        List<ArtistDTO> dtos = Arrays.asList(new ArtistDTO[ApplicationConstants.MAX_BULK_OPERATION_SIZE + 1]);
+        assertThrows(ValidationException.class, () -> artistService.addBulkArtists(dtos));
+    }
+
+    @Test
+    void testAddBulkArtists_InvalidArtist() {
+        ArtistDTO invalidDTO = new ArtistDTO();
+        List<ArtistDTO> dtos = List.of(invalidDTO);
+
+        assertThrows(ValidationException.class, () -> artistService.addBulkArtists(dtos));
+    }
+
+    @Test
+    void testGetArtistsByArtTitle_Success() {
+        when(artistRepository.findByArtTitleContaining("Mona Lisa")).thenReturn(List.of(artist));
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        List<ArtistDTO> result = artistService.getArtistsByArtTitle("Mona Lisa");
+
+        assertEquals(1, result.size());
+        verify(artistCache).put(1, artist);
+    }
+
+    @Test
+    void testGetArtistsByArtTitle_EmptyResult() {
+        when(artistRepository.findByArtTitleContaining("Unknown")).thenReturn(List.of());
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        List<ArtistDTO> result = artistService.getArtistsByArtTitle("Unknown");
 
         assertTrue(result.isEmpty());
     }
 
     @Test
-    void getArtistsByArtTitle_Found_ReturnsList() {
-        lenient().when(artistRepository.findByArtTitleContaining("Starry Night"))
-                .thenReturn(Collections.singletonList(artist));
+    void testGetAllArtists_Success() {
+        when(artistRepository.findAllWithArts()).thenReturn(List.of(artist));
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
 
-        List<Artist> result = artistService.getArtistsByArtTitle("Starry Night");
-
-        assertEquals(1, result.size());
-    }
-
-    @Test
-    void getArtistsByArtTitle_NotFound_ReturnsEmptyList() {
-        lenient().when(artistRepository.findByArtTitleContaining("Unknown")).thenReturn(Collections.emptyList());
-
-        List<Artist> result = artistService.getArtistsByArtTitle("Unknown");
-
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    void getAllArtists_ReturnsList() {
-        lenient().when(artistRepository.findAll()).thenReturn(Collections.singletonList(artist));
-
-        List<Artist> result = artistService.getAllArtists();
+        List<ArtistDTO> result = artistService.getAllArtists();
 
         assertEquals(1, result.size());
+        verify(artistCache).put(1, artist);
     }
 
     @Test
-    void getCacheInfo_ReturnsCacheInfo() {
-        lenient().when(artistCache.getCacheInfo()).thenReturn("Cache info");
+    void testGetCacheInfo() {
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+        when(artistCache.getCacheInfo()).thenReturn("Cache info");
 
         String result = artistService.getCacheInfo();
 
@@ -282,108 +341,247 @@ class ArtistServiceTest {
     }
 
     @Test
-    void getArtistCache_ReturnsCache() {
+    void testGetArtistCache() {
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
         EntityCache<Artist> result = artistService.getArtistCache();
 
         assertEquals(artistCache, result);
     }
 
     @Test
-    void addBulkArtists_ValidList_ReturnsList() {
-        List<ArtistDTO> dtos = Arrays.asList(artistDTO, artistDTO);
-        Artist savedArtist1 = new Artist("Vincent", "van Gogh");
-        Artist savedArtist2 = new Artist("Pablo", "Picasso");
+    void testCreateArtist_OnlyMiddleName_ShouldThrowValidationException() {
+        ArtistDTO invalidDTO = new ArtistDTO();
+        invalidDTO.setMiddleName("OnlyMiddle");
 
-        lenient().when(artistRepository.save(any(Artist.class)))
-                .thenReturn(savedArtist1)
-                .thenReturn(savedArtist2);
-
-        List<Artist> result = artistService.addBulkArtists(dtos);
-
-        assertEquals(2, result.size());
-        verify(artistCache, times(2)).put(anyInt(), any(Artist.class));
+        assertThrows(ValidationException.class, () -> artistService.createArtist(invalidDTO));
     }
 
     @Test
-    void addBulkArtists_NullList_ThrowsValidationException() {
-        assertThrows(ValidationException.class, () -> artistService.addBulkArtists(null));
+    void testUpdateArtist_WithNullMiddleName_ShouldUpdateSuccessfully() {
+        when(artistRepository.findWithArtsById(1)).thenReturn(Optional.of(artist));
+        when(artistRepository.save(any(Artist.class))).thenReturn(artist);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtistDTO updatedDTO = new ArtistDTO();
+        updatedDTO.setFirstName("Jane");
+        updatedDTO.setMiddleName(null);
+        updatedDTO.setLastName("Smith");
+
+        ArtistDTO result = artistService.updateArtist(1, updatedDTO);
+
+        assertEquals("Jane", result.getFirstName());
+        assertNull(result.getMiddleName());
+        verify(artistCache).update(1, artist);
     }
 
     @Test
-    void addBulkArtists_EmptyList_ThrowsValidationException() {
-        assertThrows(ValidationException.class, () -> artistService.addBulkArtists(Collections.emptyList()));
+    void testPatchArtist_UpdateMiddleNameToNull_ShouldUpdateSuccessfully() {
+        ArtistPatchDTO patchDTO = new ArtistPatchDTO();
+        patchDTO.setMiddleName(null);
+
+        when(artistRepository.findWithArtsById(1)).thenReturn(Optional.of(artist));
+        when(artistRepository.save(any(Artist.class))).thenReturn(artist);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtistDTO result = artistService.patchArtist(1, patchDTO);
+
+        assertNull(result.getMiddleName());
+        verify(artistCache).update(1, artist);
     }
 
     @Test
-    void addBulkArtists_TooLargeList_ThrowsValidationException() {
-        List<ArtistDTO> largeList = Collections.nCopies(ApplicationConstants.MAX_BULK_OPERATION_SIZE + 1, artistDTO);
-        assertThrows(ValidationException.class, () -> artistService.addBulkArtists(largeList));
+    void testGetAllArtists_WithNullArts_ShouldHandleGracefully() {
+        Artist artistWithNullArts = new Artist();
+        artistWithNullArts.setId(2);
+        artistWithNullArts.setFirstName("Test");
+        artistWithNullArts.setLastName("Artist");
+        artistWithNullArts.setArts(null);
+
+        when(artistRepository.findAllWithArts()).thenReturn(List.of(artistWithNullArts));
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        List<ArtistDTO> result = artistService.getAllArtists();
+
+        assertEquals(1, result.size());
+        assertEquals("Test", result.get(0).getFirstName());
     }
 
     @Test
-    void addBulkArtists_InvalidArtist_ThrowsValidationException() {
-        artistDTO.setFirstName(null);
-        artistDTO.setLastName(null);
-        List<ArtistDTO> dtos = Collections.singletonList(artistDTO);
+    void testSearchArtists_EmptyResults_ShouldReturnEmptyList() {
+        when(artistRepository.findByFirstNameContainingIgnoreCase("Nonexistent")).thenReturn(Collections.emptyList());
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        List<ArtistDTO> result = artistService.searchArtists("Nonexistent", null);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testAddBulkArtists_WithNullMiddleName_ShouldSucceed() {
+        ArtistDTO artistWithNullMiddle = new ArtistDTO();
+        artistWithNullMiddle.setFirstName("John");
+        artistWithNullMiddle.setMiddleName(null);
+        artistWithNullMiddle.setLastName("Doe");
+
+        List<ArtistDTO> dtos = List.of(artistWithNullMiddle);
+        when(artistRepository.save(any(Artist.class))).thenReturn(artist);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        List<ArtistDTO> result = artistService.addBulkArtists(dtos);
+
+        assertEquals(1, result.size());
+    }
+
+    @Test
+    void testCreateArtist_WithOnlyLastName_ShouldSucceed() {
+        ArtistDTO artistOnlyLastName = new ArtistDTO();
+        artistOnlyLastName.setLastName("Doe");
+
+        Artist savedArtist = new Artist();
+        savedArtist.setId(1);
+        savedArtist.setLastName("Doe");
+
+        when(artistRepository.save(any(Artist.class))).thenReturn(savedArtist);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtistDTO result = artistService.createArtist(artistOnlyLastName);
+
+        assertNotNull(result);
+        assertEquals("Doe", result.getLastName());
+        assertNull(result.getFirstName());
+        verify(artistCache).put(1, savedArtist);
+    }
+
+    @Test
+    void testCreateArtist_WithOnlyFirstName_ShouldSucceed() {
+        ArtistDTO artistOnlyFirstName = new ArtistDTO();
+        artistOnlyFirstName.setFirstName("John");
+
+        Artist savedArtist = new Artist();
+        savedArtist.setId(1);
+        savedArtist.setFirstName("John");
+
+        when(artistRepository.save(any(Artist.class))).thenReturn(savedArtist);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtistDTO result = artistService.createArtist(artistOnlyFirstName);
+
+        assertNotNull(result);
+        assertEquals("John", result.getFirstName());
+        assertNull(result.getLastName());
+        verify(artistCache).put(1, savedArtist);
+    }
+
+    @Test
+    void testUpdateArtist_RemoveMiddleName_ShouldSucceed() {
+        Artist artistWithMiddleName = new Artist();
+        artistWithMiddleName.setId(1);
+        artistWithMiddleName.setFirstName("John");
+        artistWithMiddleName.setMiddleName("Middle");
+        artistWithMiddleName.setLastName("Doe");
+
+        ArtistDTO updateDTO = new ArtistDTO();
+        updateDTO.setFirstName("John");
+        updateDTO.setMiddleName(null);
+        updateDTO.setLastName("Doe");
+
+        when(artistRepository.findWithArtsById(1)).thenReturn(Optional.of(artistWithMiddleName));
+        when(artistRepository.save(any(Artist.class))).thenReturn(artistWithMiddleName);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtistDTO result = artistService.updateArtist(1, updateDTO);
+
+        assertNotNull(result);
+        assertNull(result.getMiddleName());
+        verify(artistCache).update(1, artistWithMiddleName);
+    }
+
+    @Test
+    void testPatchArtist_RemoveMiddleName_ShouldSucceed() {
+        Artist artistWithMiddleName = new Artist();
+        artistWithMiddleName.setId(1);
+        artistWithMiddleName.setFirstName("John");
+        artistWithMiddleName.setMiddleName("Middle");
+        artistWithMiddleName.setLastName("Doe");
+
+        ArtistPatchDTO patchDTO = new ArtistPatchDTO();
+        patchDTO.setMiddleName(null);
+
+        when(artistRepository.findWithArtsById(1)).thenReturn(Optional.of(artistWithMiddleName));
+        when(artistRepository.save(any(Artist.class))).thenReturn(artistWithMiddleName);
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        ArtistDTO result = artistService.patchArtist(1, patchDTO);
+
+        assertNotNull(result);
+        assertNull(result.getMiddleName());
+        verify(artistCache).update(1, artistWithMiddleName);
+    }
+
+    @Test
+    void testGetArtistsByArtTitle_WithNullArts_ShouldHandleGracefully() {
+        Artist artistWithNullArts = new Artist();
+        artistWithNullArts.setId(2);
+        artistWithNullArts.setFirstName("Test");
+        artistWithNullArts.setLastName("Artist");
+        artistWithNullArts.setArts(null);
+
+        when(artistRepository.findByArtTitleContaining("Mona Lisa")).thenReturn(List.of(artistWithNullArts));
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        List<ArtistDTO> result = artistService.getArtistsByArtTitle("Mona Lisa");
+
+        assertEquals(1, result.size());
+        assertEquals("Test", result.get(0).getFirstName());
+    }
+
+    @Test
+    void testGetAllArtists_WithEmptyArts_ShouldHandleGracefully() {
+        Artist artistWithEmptyArts = new Artist();
+        artistWithEmptyArts.setId(2);
+        artistWithEmptyArts.setFirstName("Test");
+        artistWithEmptyArts.setLastName("Artist");
+        artistWithEmptyArts.setArts(new HashSet<>());
+
+        when(artistRepository.findAllWithArts()).thenReturn(List.of(artistWithEmptyArts));
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        List<ArtistDTO> result = artistService.getAllArtists();
+
+        assertEquals(1, result.size());
+        assertEquals("Test", result.get(0).getFirstName());
+    }
+
+    @Test
+    void testSearchArtists_WithEmptyString_ShouldReturnEmptyList() {
+        when(artistRepository.findByFirstNameContainingIgnoreCase("")).thenReturn(Collections.emptyList());
+        when(cacheService.getArtistCache()).thenReturn(artistCache);
+
+        List<ArtistDTO> result = artistService.searchArtists("", null);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testAddBulkArtists_WithEmptyNames_ShouldThrowValidationException() {
+        ArtistDTO invalidDTO = new ArtistDTO();
+        invalidDTO.setFirstName("");
+        invalidDTO.setLastName("");
+
+        List<ArtistDTO> dtos = List.of(invalidDTO);
 
         assertThrows(ValidationException.class, () -> artistService.addBulkArtists(dtos));
     }
 
     @Test
-    void addBulkArtists_ArtistWithOnlyFirstName_Valid() {
-        artistDTO.setLastName(null);
-        List<ArtistDTO> dtos = Collections.singletonList(artistDTO);
-        Artist savedArtist = new Artist("Vincent", null);
+    void testAddBulkArtists_WithWhitespaceNames_ShouldThrowValidationException() {
+        ArtistDTO invalidDTO = new ArtistDTO();
+        invalidDTO.setFirstName("   ");
+        invalidDTO.setLastName("   ");
 
-        lenient().when(artistRepository.save(any(Artist.class))).thenReturn(savedArtist);
+        List<ArtistDTO> dtos = List.of(invalidDTO);
 
-        List<Artist> result = artistService.addBulkArtists(dtos);
-
-        assertEquals(1, result.size());
-        verify(artistCache).put(anyInt(), eq(savedArtist));
-    }
-
-    @Test
-    void addBulkArtists_ArtistWithOnlyLastName_Valid() {
-        artistDTO.setFirstName(null);
-        List<ArtistDTO> dtos = Collections.singletonList(artistDTO);
-        Artist savedArtist = new Artist(null, "van Gogh");
-
-        lenient().when(artistRepository.save(any(Artist.class))).thenReturn(savedArtist);
-
-        List<Artist> result = artistService.addBulkArtists(dtos);
-
-        assertEquals(1, result.size());
-        verify(artistCache).put(anyInt(), eq(savedArtist));
-    }
-
-    @Test
-    void patchArtist_UpdateMiddleName_ReturnsPatchedArtist() {
-        Artist existingArtist = new Artist("Original", "Artist");
-        ArtistPatchDTO patch = new ArtistPatchDTO();
-        patch.setMiddleName("New Middle Name");
-
-        lenient().when(artistRepository.findWithArtsById(anyInt())).thenReturn(Optional.of(existingArtist));
-        lenient().when(artistRepository.save(any(Artist.class))).thenReturn(existingArtist);
-
-        Artist result = artistService.patchArtist(1, patch);
-
-        assertNotNull(result);
-        verify(artistCache).update(anyInt(), eq(existingArtist));
-    }
-
-    @Test
-    void patchArtist_UpdateLastName_ReturnsPatchedArtist() {
-        Artist existingArtist = new Artist("Original", "Artist");
-        ArtistPatchDTO patch = new ArtistPatchDTO();
-        patch.setLastName("New Last Name");
-
-        lenient().when(artistRepository.findWithArtsById(anyInt())).thenReturn(Optional.of(existingArtist));
-        lenient().when(artistRepository.save(any(Artist.class))).thenReturn(existingArtist);
-
-        Artist result = artistService.patchArtist(1, patch);
-
-        assertNotNull(result);
-        verify(artistCache).update(anyInt(), eq(existingArtist));
+        assertThrows(ValidationException.class, () -> artistService.addBulkArtists(dtos));
     }
 }

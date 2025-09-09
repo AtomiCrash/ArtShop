@@ -13,7 +13,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +33,7 @@ public class ArtistService implements ArtistServiceInterface {
     }
 
     @Transactional
-    public List<Artist> addBulkArtists(List<ArtistDTO> artistDTOs) {
+    public List<ArtistDTO> addBulkArtists(List<ArtistDTO> artistDTOs) {
         if (artistDTOs == null || artistDTOs.isEmpty()) {
             throw new ValidationException("Artist list cannot be null or empty");
         }
@@ -54,22 +53,21 @@ public class ArtistService implements ArtistServiceInterface {
     }
 
     @Transactional
-    public List<Artist> getArtistsByArtTitle(String artTitle) {
+    public List<ArtistDTO> getArtistsByArtTitle(String artTitle) {
         List<Artist> artists = artistRepository.findByArtTitleContaining(artTitle);
+        artists.forEach(artist -> cacheService.getArtistCache().put(artist.getId(), artist));
         if (artists.isEmpty()) LOGGER.warn("No artists found for artwork title: {}", artTitle);
-        return artists;
+        return artists.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     @Transactional
-    public Artist createArtist(ArtistDTO artistDTO) {
+    public ArtistDTO createArtist(ArtistDTO artistDTO) {
         if (artistDTO == null) {
             throw new ValidationException("Artist data cannot be null");
         }
-        if (artistDTO.getFirstName() == null || artistDTO.getFirstName().trim().isEmpty()) {
-            throw new ValidationException("Artist must have at least first name");
-        }
-        if (artistDTO.getLastName() == null || artistDTO.getLastName().trim().isEmpty()) {
-            throw new ValidationException("Artist must have at least last name");
+        if ((artistDTO.getFirstName() == null || artistDTO.getFirstName().trim().isEmpty()) &&
+                (artistDTO.getLastName() == null || artistDTO.getLastName().trim().isEmpty())) {
+            throw new ValidationException("Artist must have at least first name or last name");
         }
         if (artistDTO.getFirstName() != null && artistDTO.getFirstName().length() > 60) {
             throw new ValidationException("First name must be 60 characters or less");
@@ -87,20 +85,20 @@ public class ArtistService implements ArtistServiceInterface {
         artist.setLastName(artistDTO.getLastName());
         Artist savedArtist = artistRepository.save(artist);
         cacheService.getArtistCache().put(savedArtist.getId(), savedArtist);
-        return savedArtist;
+        return convertToDTO(savedArtist);
     }
 
     @Transactional
-    public List<Artist> getAllArtists() {
+    public List<ArtistDTO> getAllArtists() {
         List<Artist> artists = artistRepository.findAllWithArts();
-        System.out.println("Artists loaded: " + artists.size());
+        LOGGER.debug("Artists loaded: {}", artists.size());
         artists.forEach(artist -> {
-            System.out.println("Artist " + artist.getId() + " has " + (artist.getArts() != null ? artist.getArts().size() : "null") + " arts");
+            LOGGER.debug("Artist {} has {} arts", artist.getId(), (artist.getArts() != null ? artist.getArts().size() : "null"));
             if (artist.getArts() != null) {
                 artist.getArts().forEach(art -> {
-                    System.out.println("Art: " + art.getTitle());
+                    LOGGER.debug("Art: {}", art.getTitle());
                     if (Hibernate.isInitialized(art.getClassification()) && art.getClassification() != null) {
-                        System.out.println("Classification: " + art.getClassification().getName());
+                        LOGGER.debug("Classification: {}", art.getClassification().getName());
                     } else {
                         Hibernate.initialize(art.getClassification());
                     }
@@ -108,22 +106,22 @@ public class ArtistService implements ArtistServiceInterface {
             }
         });
         artists.forEach(artist -> cacheService.getArtistCache().put(artist.getId(), artist));
-        return artists;
+        return artists.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     @Transactional
-    public Optional<Artist> getArtistById(Integer id) {
+    public Optional<ArtistDTO> getArtistById(Integer id) {
         return cacheService.getArtistCache().get(id)
-                .map(Optional::of)
-                .orElseGet(() -> {
+                .map(this::convertToDTO)
+                .or(() -> {
                     Optional<Artist> artist = artistRepository.findById(id);
                     artist.ifPresent(a -> cacheService.getArtistCache().put(a.getId(), a));
-                    return artist;
+                    return artist.map(this::convertToDTO);
                 });
     }
 
     @Transactional
-    public Artist updateArtist(Integer id, ArtistDTO artistDTO) {
+    public ArtistDTO updateArtist(Integer id, ArtistDTO artistDTO) {
         Artist artist = artistRepository.findWithArtsById(id)
                 .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
         artist.setFirstName(artistDTO.getFirstName());
@@ -132,12 +130,12 @@ public class ArtistService implements ArtistServiceInterface {
         Artist updatedArtist = artistRepository.save(artist);
         cacheService.getArtistCache().update(id, updatedArtist);
         artist.getArts().forEach(art -> cacheService.getArtCache().update(art.getId(), art));
-        return updatedArtist;
+        return convertToDTO(updatedArtist);
     }
 
     @Transactional
     public void deleteArtist(Integer id) {
-        Artist artist = artistRepository.findById(id)
+        Artist artist = artistRepository.findWithArtsById(id)
                 .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
         artist.getArts().forEach(art -> {
             art.getArtists().remove(artist);
@@ -148,20 +146,24 @@ public class ArtistService implements ArtistServiceInterface {
     }
 
     @Transactional
-    public List<Artist> searchArtists(String firstName, String lastName) {
+    public List<ArtistDTO> searchArtists(String firstName, String lastName) {
+        List<Artist> artists;
         if (firstName != null && lastName != null) {
-            return artistRepository
+            artists = artistRepository
                     .findByFirstNameContainingIgnoreCaseAndLastNameContainingIgnoreCase(firstName, lastName);
         } else if (firstName != null) {
-            return artistRepository.findByFirstNameContainingIgnoreCase(firstName);
+            artists = artistRepository.findByFirstNameContainingIgnoreCase(firstName);
         } else if (lastName != null) {
-            return artistRepository.findByLastNameContainingIgnoreCase(lastName);
+            artists = artistRepository.findByLastNameContainingIgnoreCase(lastName);
+        } else {
+            artists = Collections.emptyList();
         }
-        return Collections.emptyList();
+        artists.forEach(artist -> cacheService.getArtistCache().put(artist.getId(), artist));
+        return artists.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     @Transactional
-    public Artist patchArtist(Integer id, ArtistPatchDTO artistPatchDTO) {
+    public ArtistDTO patchArtist(Integer id, ArtistPatchDTO artistPatchDTO) {
         if (!artistPatchDTO.hasUpdates()) throw new IllegalArgumentException("No fields to update");
         Artist artist = artistRepository.findWithArtsById(id)
                 .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
@@ -171,7 +173,7 @@ public class ArtistService implements ArtistServiceInterface {
         Artist patchedArtist = artistRepository.save(artist);
         cacheService.getArtistCache().update(id, patchedArtist);
         artist.getArts().forEach(art -> cacheService.getArtCache().update(art.getId(), art));
-        return patchedArtist;
+        return convertToDTO(patchedArtist);
     }
 
     public String getCacheInfo() {
@@ -180,5 +182,14 @@ public class ArtistService implements ArtistServiceInterface {
 
     public EntityCache<Artist> getArtistCache() {
         return cacheService.getArtistCache();
+    }
+
+    private ArtistDTO convertToDTO(Artist artist) {
+        ArtistDTO dto = new ArtistDTO();
+        dto.setId(artist.getId());
+        dto.setFirstName(artist.getFirstName());
+        dto.setMiddleName(artist.getMiddleName());
+        dto.setLastName(artist.getLastName());
+        return dto;
     }
 }
