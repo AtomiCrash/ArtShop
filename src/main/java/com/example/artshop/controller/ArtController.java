@@ -34,7 +34,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class ArtController {
     private final ArtServiceInterface artService;
 
-    @Autowired
     public ArtController(ArtService artService) {
         this.artService = artService;
     }

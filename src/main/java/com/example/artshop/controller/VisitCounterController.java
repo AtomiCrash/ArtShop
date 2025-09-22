@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/visits")
 public class VisitCounterController {
-    @Autowired
+
     private VisitCounterService visitCounterService;
 
     @Operation(summary = "Get total visits",

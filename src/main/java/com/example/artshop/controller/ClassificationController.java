@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/classification")
 @Tag(name = "Classification Management", description = "Operations related to artwork classifications")
 public class ClassificationController {
-    @Autowired
+
     private ClassificationService classificationService;
 
     @Operation(summary = "Get all classifications", description = "Returns list of all classifications")

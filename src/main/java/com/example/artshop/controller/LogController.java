@@ -41,7 +41,6 @@ public class LogController {
     @Value("${report.storage.path}")
     private String reportsDir;
 
-    @Autowired
     public LogController(LogService logService) {
         this.logService = logService;
     }
