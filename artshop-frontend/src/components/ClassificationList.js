@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, TextField, Box, Snackbar, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import {
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+    Paper, TextField, Button, Box, Typography
+} from '@mui/material';
 import { Link } from 'react-router-dom';
-import { getAllClassifications, getClassificationsByName, deleteClassification } from '../api';
+import axios from 'axios';
 
-function ClassificationList() {
+const ClassificationList = () => {
     const [classifications, setClassifications] = useState([]);
-    const [name, setName] = useState('');
-    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-    const [deleteId, setDeleteId] = useState(null);
-    const [snackbarOpen, setSnackbarOpen] = useState(false);
-    const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [searchName, setSearchName] = useState('');
 
     useEffect(() => {
         fetchClassifications();
@@ -17,64 +16,69 @@ function ClassificationList() {
 
     const fetchClassifications = async () => {
         try {
-            const response = await getAllClassifications();
+            const response = await axios.get('http://localhost:8100/api/classification/all');
             setClassifications(response.data);
         } catch (error) {
-            setSnackbarMessage('Ошибка при загрузке классификаций: ' + error.message);
-            setSnackbarOpen(true);
+            console.error('Error fetching classifications:', error);
         }
     };
 
-    const handleSearchByName = async () => {
+    const searchClassifications = async () => {
         try {
-            const response = await getClassificationsByName(name);
+            const response = await axios.get(`http://localhost:8100/api/classification/name?name=${searchName}`);
             setClassifications(response.data);
         } catch (error) {
-            setSnackbarMessage('Ошибка при поиске по имени: ' + error.message);
-            setSnackbarOpen(true);
+            console.error('Error searching classifications:', error);
         }
     };
 
-    const handleDelete = async (id) => {
-        setDeleteId(id);
-        setOpenDeleteDialog(true);
-    };
-
-    const confirmDelete = async () => {
-        setOpenDeleteDialog(false);
-        try {
-            await deleteClassification(deleteId);
-            setClassifications(classifications.filter(classification => classification.id !== deleteId));
-            setSnackbarMessage('Классификация успешно удалена');
-            setSnackbarOpen(true);
-        } catch (error) {
-            setSnackbarMessage('Ошибка при удалении классификации: ' + error.message);
-            setSnackbarOpen(true);
+    const deleteClassification = async (id) => {
+        if (window.confirm('Вы уверены, что хотите удалить эту классификацию?')) {
+            try {
+                await axios.delete(`http://localhost:8100/api/classification/${id}`);
+                fetchClassifications();
+            } catch (error) {
+                console.error('Error deleting classification:', error);
+            }
         }
-    };
-
-    const handleCloseSnackbar = () => {
-        setSnackbarOpen(false);
-    };
-
-    const handleCloseDeleteDialog = () => {
-        setOpenDeleteDialog(false);
-        setDeleteId(null);
     };
 
     return (
         <div>
-            <h2>Список классификаций</h2>
-            <Box mb={2}>
+            <Typography variant="h4" gutterBottom>
+                Список классификаций
+            </Typography>
+
+            <Box sx={{
+                mb: 3,
+                display: 'flex',
+                gap: 2,
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100%'
+            }}>
                 <TextField
-                    label="Имя классификации"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    style={{ marginRight: '10px' }}
+                    label="Классификация"
+                    value={searchName}
+                    onChange={(e) => setSearchName(e.target.value)}
+                    size="small"
                 />
-                <Button variant="contained" onClick={handleSearchByName}>Поиск</Button>
+                <Button variant="contained" onClick={searchClassifications}>
+                    поиск
+                </Button>
             </Box>
-            <Button variant="contained" component={Link} to="/classifications/add">Добавить классификацию</Button>
+
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    component={Link}
+                    to="/classifications/add"
+                >
+                    ДОБАВИТЬ КЛАССИФИКАЦИЮ
+                </Button>
+            </Box>
+
             <TableContainer component={Paper}>
                 <Table>
                     <TableHead>
@@ -92,39 +96,39 @@ function ClassificationList() {
                                 <TableCell>{index + 1}</TableCell>
                                 <TableCell>{classification.name}</TableCell>
                                 <TableCell>{classification.description}</TableCell>
-                                <TableCell>{classification.arts?.map(art => art.title).join(', ') || 'Нет произведений'}</TableCell>
                                 <TableCell>
-                                    <Button component={Link} to={`/classifications/edit/${classification.id}`}>Редактировать</Button>
-                                    <Button color="error" onClick={() => handleDelete(classification.id)}>Удалить</Button>
+                                    {classification.artworkCount > 0 ? (
+                                        classification.artworkTitles.join(', ')
+                                    ) : (
+                                        'Нет произведений'
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    <Button
+                                        component={Link}
+                                        to={`/classifications/edit/${classification.id}`}
+                                        variant="outlined"
+                                        size="small"
+                                        sx={{ mr: 1 }}
+                                    >
+                                        РЕДАКТИРОВАТЬ
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        color="error"
+                                        size="small"
+                                        onClick={() => deleteClassification(classification.id)}
+                                    >
+                                        УДАЛИТЬ
+                                    </Button>
                                 </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
             </TableContainer>
-            <Snackbar
-                open={snackbarOpen}
-                autoHideDuration={6000}
-                onClose={handleCloseSnackbar}
-                message={snackbarMessage}
-            />
-            <Dialog
-                open={openDeleteDialog}
-                onClose={handleCloseDeleteDialog}
-            >
-                <DialogTitle>Подтверждение удаления</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        Вы уверены, что хотите удалить эту классификацию? Это действие нельзя отменить.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseDeleteDialog} color="primary">Отмена</Button>
-                    <Button onClick={confirmDelete} color="error">Удалить</Button>
-                </DialogActions>
-            </Dialog>
         </div>
     );
-}
+};
 
 export default ClassificationList;

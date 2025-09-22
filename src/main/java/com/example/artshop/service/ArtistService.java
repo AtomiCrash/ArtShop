@@ -5,6 +5,7 @@ import com.example.artshop.dto.ArtistDTO;
 import com.example.artshop.dto.ArtistPatchDTO;
 import com.example.artshop.exception.NotFoundException;
 import com.example.artshop.exception.ValidationException;
+import com.example.artshop.model.Art;
 import com.example.artshop.model.Artist;
 import com.example.artshop.repository.ArtistRepository;
 import com.example.artshop.service.cache.EntityCache;
@@ -92,19 +93,6 @@ public class ArtistService implements ArtistServiceInterface {
     public List<ArtistDTO> getAllArtists() {
         List<Artist> artists = artistRepository.findAllWithArts();
         LOGGER.debug("Artists loaded: {}", artists.size());
-        artists.forEach(artist -> {
-            LOGGER.debug("Artist {} has {} arts", artist.getId(), (artist.getArts() != null ? artist.getArts().size() : "null"));
-            if (artist.getArts() != null) {
-                artist.getArts().forEach(art -> {
-                    LOGGER.debug("Art: {}", art.getTitle());
-                    if (Hibernate.isInitialized(art.getClassification()) && art.getClassification() != null) {
-                        LOGGER.debug("Classification: {}", art.getClassification().getName());
-                    } else {
-                        Hibernate.initialize(art.getClassification());
-                    }
-                });
-            }
-        });
         artists.forEach(artist -> cacheService.getArtistCache().put(artist.getId(), artist));
         return artists.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
@@ -114,7 +102,7 @@ public class ArtistService implements ArtistServiceInterface {
         return cacheService.getArtistCache().get(id)
                 .map(this::convertToDTO)
                 .or(() -> {
-                    Optional<Artist> artist = artistRepository.findById(id);
+                    Optional<Artist> artist = artistRepository.findWithArtsById(id);
                     artist.ifPresent(a -> cacheService.getArtistCache().put(a.getId(), a));
                     return artist.map(this::convertToDTO);
                 });
@@ -190,6 +178,17 @@ public class ArtistService implements ArtistServiceInterface {
         dto.setFirstName(artist.getFirstName());
         dto.setMiddleName(artist.getMiddleName());
         dto.setLastName(artist.getLastName());
+
+        if (artist.getArts() != null && !artist.getArts().isEmpty()) {
+            List<String> titles = artist.getArts().stream()
+                    .map(Art::getTitle)
+                    .collect(Collectors.toList());
+            dto.setArtworkTitles(titles);
+            dto.setArtworkCount(titles.size());
+        } else {
+            dto.setArtworkCount(0);
+        }
+
         return dto;
     }
 }

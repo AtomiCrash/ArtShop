@@ -3,7 +3,6 @@ package com.example.artshop.repository;
 import com.example.artshop.model.Artist;
 import java.util.List;
 import java.util.Optional;
-
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -30,14 +29,14 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
 
     List<Artist> findByFirstNameContainingIgnoreCaseAndLastNameContainingIgnoreCase(String firstName, String lastName);
 
-    @Query("SELECT DISTINCT a FROM Artist a JOIN FETCH a.arts WHERE a.id = :id")
+    @Query("SELECT DISTINCT a FROM Artist a JOIN a.arts WHERE a.id = :id")
     Optional<Artist> findWithArtsById(@Param("id") Integer id);
 
     @Query("SELECT DISTINCT a FROM Artist a JOIN a.arts art WHERE LOWER(art.title)" +
             " LIKE LOWER(concat('%', :artTitle, '%'))")
     List<Artist> findByArtTitleContaining(@Param("artTitle") String artTitle);
 
-    @Query("SELECT DISTINCT a FROM Artist a LEFT JOIN FETCH a.arts")
+    @Query("SELECT DISTINCT a FROM Artist a LEFT JOIN a.arts")
     List<Artist> findAllWithArts();
 
     @EntityGraph(attributePaths = "arts")

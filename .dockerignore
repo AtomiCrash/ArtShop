@@ -1,0 +1,10 @@
+.git
+**/target
+**/.mvn
+**/.gitignore
+**/node_modules
+**/logs
+**/reports
+Dockerfile
+docker-compose.yml
+README.md

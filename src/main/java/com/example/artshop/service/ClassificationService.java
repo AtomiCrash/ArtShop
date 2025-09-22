@@ -4,9 +4,11 @@ import com.example.artshop.constants.ApplicationConstants;
 import com.example.artshop.dto.ClassificationDTO;
 import com.example.artshop.dto.ClassificationPatchDTO;
 import com.example.artshop.exception.ValidationException;
+import com.example.artshop.model.Art;
 import com.example.artshop.model.Classification;
 import com.example.artshop.repository.ClassificationRepository;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,12 +30,16 @@ public class ClassificationService {
     }
 
     @Transactional(readOnly = true)
-    public List<Classification> getClassificationsByArtTitle(String artTitle) {
+    public List<ClassificationDTO> getClassificationsByArtTitle(String artTitle) {
         List<Classification> classifications = classificationRepository.findByArtTitleContaining(artTitle);
-        if (classifications.isEmpty()) {
+        List<Classification> fullClassifications = classifications.stream()
+                .map(cls -> classificationRepository.findWithArtsById(cls.getId()).orElse(cls))
+                .collect(Collectors.toList());
+
+        if (fullClassifications.isEmpty()) {
             LOGGER.warn("No classifications found for artwork title: {}", artTitle);
         }
-        return classifications;
+        return fullClassifications.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     @Transactional
@@ -65,40 +71,40 @@ public class ClassificationService {
     }
 
     @Transactional(readOnly = true)
-    public List<Classification> getAllClassifications() {
+    public List<ClassificationDTO> getAllClassifications() {
         List<Classification> classifications = classificationRepository.findAllWithArts();
-        System.out.println("Classifications loaded: " + classifications.size());
-        classifications.forEach(classification -> {
-            System.out.println("Classification " + classification.getId() + " has " + (classification.getArts() != null ? classification.getArts().size() : "null") + " arts");
-            if (classification.getArts() != null) {
-                classification.getArts().forEach(art -> System.out.println("Art: " + art.getTitle()));
-            }
-        });
         classifications.forEach(c -> cacheService.getClassificationCache().put(c.getId(), c));
-        return classifications;
+        return classifications.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public Classification getClassificationById(int id) {
+    public ClassificationDTO getClassificationById(int id) {
         return cacheService.getClassificationCache().get(id)
+                .map(this::convertToDTO)
                 .orElseGet(() -> {
-                    Classification classification = classificationRepository.findById(id);
-                    if (classification != null) {
-                        cacheService.getClassificationCache().put(id, classification);
+                    Optional<Classification> classification = classificationRepository.findWithArtsById(id);
+                    if (classification.isPresent()) {
+                        Classification cls = classification.get();
+                        cacheService.getClassificationCache().put(cls.getId(), cls);
+                        return convertToDTO(cls);
                     }
-                    return classification;
+                    return null;
                 });
     }
 
     @Transactional(readOnly = true)
-    public List<Classification> getClassificationsByName(String name) {
+    public List<ClassificationDTO> getClassificationsByName(String name) {
         List<Classification> classifications = classificationRepository.findByNameContainingIgnoreCase(name);
-        if (classifications.isEmpty()) {
+        List<Classification> fullClassifications = classifications.stream()
+                .map(cls -> classificationRepository.findWithArtsById(cls.getId()).orElse(cls))
+                .collect(Collectors.toList());
+
+        if (fullClassifications.isEmpty()) {
             LOGGER.warn("No classifications found with name containing: {}", name);
         } else {
-            classifications.forEach(c -> cacheService.getClassificationCache().put(c.getId(), c));
+            fullClassifications.forEach(c -> cacheService.getClassificationCache().put(c.getId(), c));
         }
-        return classifications;
+        return fullClassifications.stream().map(this::convertToDTO).collect(Collectors.toList());
     }
 
     @Transactional
@@ -167,5 +173,24 @@ public class ClassificationService {
 
     public String getCacheInfo() {
         return cacheService.getClassificationCache().getCacheInfo();
+    }
+
+    private ClassificationDTO convertToDTO(Classification classification) {
+        ClassificationDTO dto = new ClassificationDTO();
+        dto.setId(classification.getId());
+        dto.setName(classification.getName());
+        dto.setDescription(classification.getDescription());
+
+        if (classification.getArts() != null && !classification.getArts().isEmpty()) {
+            List<String> titles = classification.getArts().stream()
+                    .map(Art::getTitle)
+                    .collect(Collectors.toList());
+            dto.setArtworkTitles(titles);
+            dto.setArtworkCount(titles.size());
+        } else {
+            dto.setArtworkCount(0);
+        }
+
+        return dto;
     }
 }

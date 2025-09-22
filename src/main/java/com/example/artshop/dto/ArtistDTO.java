@@ -1,8 +1,9 @@
 package com.example.artshop.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Size;
+
+import java.util.List;
 
 public class ArtistDTO {
     private Integer id;
@@ -19,6 +20,27 @@ public class ArtistDTO {
     @Size(max = 60, message = "Last name must be 60 characters or less")
     private String lastName;
 
+    @Schema(description = "Titles of artworks by this artist")
+    private List<String> artworkTitles;
+
+    @Schema(description = "Count of artworks by this artist")
+    private Integer artworkCount;
+
+    public List<String> getArtworkTitles() {
+        return artworkTitles;
+    }
+
+    public void setArtworkTitles(List<String> artworkTitles) {
+        this.artworkTitles = artworkTitles;
+    }
+
+    public Integer getArtworkCount() {
+        return artworkCount;
+    }
+
+    public void setArtworkCount(Integer artworkCount) {
+        this.artworkCount = artworkCount;
+    }
     public Integer getId() {
         return id;
     }
@@ -49,11 +71,5 @@ public class ArtistDTO {
 
     public void setLastName(String lastName) {
         this.lastName = lastName;
-    }
-
-    @AssertTrue(message = "Artist must have at least first name or last name")
-    public boolean isNameValid() {
-        return (firstName != null && !firstName.trim().isEmpty()) ||
-                (lastName != null && !lastName.trim().isEmpty());
     }
 }

@@ -36,23 +36,23 @@ public class ClassificationController {
 
     @Operation(summary = "Get all classifications", description = "Returns list of all classifications")
     @ApiResponse(responseCode = "200", description = "Successfully retrieved list",
-            content = @Content(array = @ArraySchema(schema = @Schema(implementation = Classification.class))))
+            content = @Content(array = @ArraySchema(schema = @Schema(implementation = ClassificationDTO.class))))
     @GetMapping("/all")
-    public List<Classification> getAllClassifications() {
+    public List<ClassificationDTO> getAllClassifications() {
         return classificationService.getAllClassifications();
     }
 
     @Operation(summary = "Get classification by ID", description = "Returns single classification by ID")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Classification found",
-                    content = @Content(schema = @Schema(implementation = Classification.class))),
+                    content = @Content(schema = @Schema(implementation = ClassificationDTO.class))),
             @ApiResponse(responseCode = "404", description = "Classification not found")
     })
     @GetMapping("/{id}")
-    public ResponseEntity<Classification> getClassificationById(
+    public ResponseEntity<ClassificationDTO> getClassificationById(
             @Parameter(description = "ID of classification to be retrieved", required = true)
             @PathVariable int id) {
-        Classification classification = classificationService.getClassificationById(id);
+        ClassificationDTO classification = classificationService.getClassificationById(id);
         if (classification != null) {
             return ResponseEntity.ok(classification);
         } else {
@@ -64,7 +64,7 @@ public class ClassificationController {
             description = "Returns classifications of artworks with specified title")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Classifications found",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Classification.class)))),
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = ClassificationDTO.class)))),
             @ApiResponse(responseCode = "200", description = "No classifications found",
                     content = @Content(schema = @Schema(implementation = String.class)))
     })
@@ -72,7 +72,7 @@ public class ClassificationController {
     public ResponseEntity<?> getClassificationsByArtTitle(
             @Parameter(description = "Title of artwork to search by", required = true)
             @RequestParam String artTitle) {
-        List<Classification> classifications = classificationService.getClassificationsByArtTitle(artTitle);
+        List<ClassificationDTO> classifications = classificationService.getClassificationsByArtTitle(artTitle);
         if (classifications.isEmpty()) {
             return ResponseEntity.ok("No classifications found for artwork title: " + artTitle);
         }
@@ -83,7 +83,7 @@ public class ClassificationController {
             description = "Returns classifications containing specified name")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Classifications found",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Classification.class)))),
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = ClassificationDTO.class)))),
             @ApiResponse(responseCode = "200", description = "No classifications found",
                     content = @Content(schema = @Schema(implementation = String.class)))
     })
@@ -91,7 +91,7 @@ public class ClassificationController {
     public ResponseEntity<?> getClassificationsByName(
             @Parameter(description = "Name to search by", required = true)
             @RequestParam String name) {
-        List<Classification> classifications = classificationService.getClassificationsByName(name);
+        List<ClassificationDTO> classifications = classificationService.getClassificationsByName(name);
         if (classifications.isEmpty()) {
             return ResponseEntity.ok("No classifications found with name containing: " + name);
         }

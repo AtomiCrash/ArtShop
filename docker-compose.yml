@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: artshop-postgres
+    environment:
+      POSTGRES_DB: ArtGallery
+      POSTGRES_USER: maxim
+      POSTGRES_PASSWORD: 654321
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+    container_name: artshop-app
+    ports:
+      - "8100:8100"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ArtGallery
+      SPRING_DATASOURCE_USERNAME: maxim
+      SPRING_DATASOURCE_PASSWORD: 654321
+    depends_on:
+      - postgres
+    restart: unless-stopped

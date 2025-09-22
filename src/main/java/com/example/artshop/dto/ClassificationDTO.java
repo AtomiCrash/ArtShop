@@ -1,6 +1,7 @@
 package com.example.artshop.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 
 public class ClassificationDTO {
     private Integer id;
@@ -10,6 +11,9 @@ public class ClassificationDTO {
 
     @NotBlank(message = "Description is required")
     private String description;
+
+    private List<String> artworkTitles;
+    private Integer artworkCount;
 
     public Integer getId() {
         return id;
@@ -33,5 +37,21 @@ public class ClassificationDTO {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public List<String> getArtworkTitles() {
+        return artworkTitles;
+    }
+
+    public void setArtworkTitles(List<String> artworkTitles) {
+        this.artworkTitles = artworkTitles;
+    }
+
+    public Integer getArtworkCount() {
+        return artworkCount;
+    }
+
+    public void setArtworkCount(Integer artworkCount) {
+        this.artworkCount = artworkCount;
     }
 }

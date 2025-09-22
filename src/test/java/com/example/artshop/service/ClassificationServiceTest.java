@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.*;
 
@@ -20,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
 class ClassificationServiceTest {
 
     @Mock
@@ -114,7 +112,7 @@ class ClassificationServiceTest {
         when(cacheService.getClassificationCache()).thenReturn(classificationCache);
         when(classificationCache.get(1)).thenReturn(Optional.of(classification));
 
-        Classification result = classificationService.getClassificationById(1);
+        ClassificationDTO result = classificationService.getClassificationById(1);
 
         assertNotNull(result);
         assertEquals("Painting", result.getName());
@@ -127,7 +125,7 @@ class ClassificationServiceTest {
         when(classificationCache.get(1)).thenReturn(Optional.empty());
         when(classificationRepository.findById(1)).thenReturn(classification);
 
-        Classification result = classificationService.getClassificationById(1);
+        ClassificationDTO result = classificationService.getClassificationById(1);
 
         assertNotNull(result);
         assertEquals("Painting", result.getName());
@@ -141,7 +139,7 @@ class ClassificationServiceTest {
         when(classificationCache.get(1)).thenReturn(Optional.empty());
         when(classificationRepository.findById(1)).thenReturn(null);
 
-        Classification result = classificationService.getClassificationById(1);
+        ClassificationDTO result = classificationService.getClassificationById(1);
 
         assertNull(result);
         verify(classificationCache, never()).put(anyInt(), any());
@@ -152,7 +150,7 @@ class ClassificationServiceTest {
         when(classificationRepository.findAllWithArts()).thenReturn(List.of(classification));
         when(cacheService.getClassificationCache()).thenReturn(classificationCache);
 
-        List<Classification> result = classificationService.getAllClassifications();
+        List<ClassificationDTO> result = classificationService.getAllClassifications();
 
         assertEquals(1, result.size());
         assertEquals("Painting", result.get(0).getName());
@@ -163,7 +161,7 @@ class ClassificationServiceTest {
     void getAllClassifications_Empty_ReturnsEmptyList() {
         when(classificationRepository.findAllWithArts()).thenReturn(Collections.emptyList());
 
-        List<Classification> result = classificationService.getAllClassifications();
+        List<ClassificationDTO> result = classificationService.getAllClassifications();
 
         assertTrue(result.isEmpty());
     }
@@ -248,7 +246,7 @@ class ClassificationServiceTest {
         when(classificationRepository.findByNameContainingIgnoreCase("Painting")).thenReturn(List.of(classification));
         when(cacheService.getClassificationCache()).thenReturn(classificationCache);
 
-        List<Classification> result = classificationService.getClassificationsByName("Painting");
+        List<ClassificationDTO> result = classificationService.getClassificationsByName("Painting");
 
         assertEquals(1, result.size());
         assertEquals("Painting", result.get(0).getName());
@@ -259,7 +257,7 @@ class ClassificationServiceTest {
     void getClassificationsByArtTitle_ValidTitle_ReturnsClassifications() {
         when(classificationRepository.findByArtTitleContaining("Mona Lisa")).thenReturn(List.of(classification));
 
-        List<Classification> result = classificationService.getClassificationsByArtTitle("Mona Lisa");
+        List<ClassificationDTO> result = classificationService.getClassificationsByArtTitle("Mona Lisa");
 
         assertEquals(1, result.size());
         assertEquals("Painting", result.get(0).getName());
@@ -375,7 +373,7 @@ class ClassificationServiceTest {
         when(classificationRepository.findByNameContainingIgnoreCase("Nonexistent")).thenReturn(Collections.emptyList());
         when(cacheService.getClassificationCache()).thenReturn(classificationCache);
 
-        List<Classification> result = classificationService.getClassificationsByName("Nonexistent");
+        List<ClassificationDTO> result = classificationService.getClassificationsByName("Nonexistent");
 
         assertTrue(result.isEmpty());
     }
@@ -384,7 +382,7 @@ class ClassificationServiceTest {
     void testGetClassificationsByArtTitle_EmptyResults_ShouldReturnEmptyList() {
         when(classificationRepository.findByArtTitleContaining("Nonexistent")).thenReturn(Collections.emptyList());
 
-        List<Classification> result = classificationService.getClassificationsByArtTitle("Nonexistent");
+        List<ClassificationDTO> result = classificationService.getClassificationsByArtTitle("Nonexistent");
 
         assertTrue(result.isEmpty());
     }

@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, TextField, Box, Snackbar, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
+import {
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+    Paper, TextField, Button, Box, Typography
+} from '@mui/material';
 import { Link } from 'react-router-dom';
-import { getAllArtists, searchArtists, deleteArtist } from '../api';
+import axios from 'axios';
 
-function ArtistList() {
+const ArtistList = () => {
     const [artists, setArtists] = useState([]);
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-    const [deleteId, setDeleteId] = useState(null);
-    const [snackbarOpen, setSnackbarOpen] = useState(false);
-    const [snackbarMessage, setSnackbarMessage] = useState('');
+    const [searchFirstName, setSearchFirstName] = useState('');
+    const [searchLastName, setSearchLastName] = useState('');
 
     useEffect(() => {
         fetchArtists();
@@ -18,70 +17,79 @@ function ArtistList() {
 
     const fetchArtists = async () => {
         try {
-            const response = await getAllArtists();
+            const response = await axios.get('http://localhost:8100/api/artist/all');
             setArtists(response.data);
         } catch (error) {
-            setSnackbarMessage('Ошибка при загрузке артистов: ' + error.message);
-            setSnackbarOpen(true);
+            console.error('Error fetching artists:', error);
         }
     };
 
-    const handleSearchByName = async () => {
+    const searchArtists = async () => {
         try {
-            const response = await searchArtists(firstName, lastName);
+            let url = 'http://localhost:8100/api/artist/name?';
+            if (searchFirstName) url += `firstName=${searchFirstName}&`;
+            if (searchLastName) url += `lastName=${searchLastName}`;
+
+            const response = await axios.get(url);
             setArtists(response.data);
         } catch (error) {
-            setSnackbarMessage('Ошибка при поиске по имени: ' + error.message);
-            setSnackbarOpen(true);
+            console.error('Error searching artists:', error);
         }
     };
 
-    const handleDelete = async (id) => {
-        setDeleteId(id);
-        setOpenDeleteDialog(true);
-    };
-
-    const confirmDelete = async () => {
-        setOpenDeleteDialog(false);
-        try {
-            await deleteArtist(deleteId);
-            setArtists(artists.filter(artist => artist.id !== deleteId));
-            setSnackbarMessage('Артист успешно удален');
-            setSnackbarOpen(true);
-        } catch (error) {
-            setSnackbarMessage('Ошибка при удалении артиста: ' + error.message);
-            setSnackbarOpen(true);
+    const deleteArtist = async (id) => {
+        if (window.confirm('Вы уверены, что хотите удалить этого артиста?')) {
+            try {
+                await axios.delete(`http://localhost:8100/api/artist/${id}`);
+                fetchArtists();
+            } catch (error) {
+                console.error('Error deleting artist:', error);
+            }
         }
-    };
-
-    const handleCloseSnackbar = () => {
-        setSnackbarOpen(false);
-    };
-
-    const handleCloseDeleteDialog = () => {
-        setOpenDeleteDialog(false);
-        setDeleteId(null);
     };
 
     return (
         <div>
-            <h2>Список артистов</h2>
-            <Box mb={2}>
+            <Typography variant="h4" gutterBottom>
+                Список артистов
+            </Typography>
+
+            <Box sx={{
+                mb: 3,
+                display: 'flex',
+                gap: 2,
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100%'
+            }}>
                 <TextField
                     label="Имя"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    style={{ marginRight: '10px' }}
+                    value={searchFirstName}
+                    onChange={(e) => setSearchFirstName(e.target.value)}
+                    size="small"
                 />
                 <TextField
                     label="Фамилия"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    style={{ marginRight: '10px' }}
+                    value={searchLastName}
+                    onChange={(e) => setSearchLastName(e.target.value)}
+                    size="small"
                 />
-                <Button variant="contained" onClick={handleSearchByName}>Поиск</Button>
+                <Button variant="contained" onClick={searchArtists}>
+                    ПОИСК
+                </Button>
             </Box>
-            <Button variant="contained" component={Link} to="/artists/add">Добавить артиста</Button>
+
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    component={Link}
+                    to="/artists/add"
+                >
+                    ДОБАВИТЬ АРТИСТА
+                </Button>
+            </Box>
+
             <TableContainer component={Paper}>
                 <Table>
                     <TableHead>
@@ -98,42 +106,42 @@ function ArtistList() {
                         {artists.map((artist, index) => (
                             <TableRow key={artist.id}>
                                 <TableCell>{index + 1}</TableCell>
-                                <TableCell>{artist.firstName}</TableCell>
-                                <TableCell>{artist.middleName}</TableCell>
-                                <TableCell>{artist.lastName}</TableCell>
-                                <TableCell>{artist.arts?.map(art => art.title).join(', ') || 'Нет произведений'}</TableCell>
+                                <TableCell>{artist.firstName || '-'}</TableCell>
+                                <TableCell>{artist.middleName || '-'}</TableCell>
+                                <TableCell>{artist.lastName || '-'}</TableCell>
                                 <TableCell>
-                                    <Button component={Link} to={`/artists/edit/${artist.id}`}>Редактировать</Button>
-                                    <Button color="error" onClick={() => handleDelete(artist.id)}>Удалить</Button>
+                                    {artist.artworkCount > 0 ? (
+                                        artist.artworkTitles.join(', ')
+                                    ) : (
+                                        'Нет произведений'
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    <Button
+                                        component={Link}
+                                        to={`/artists/edit/${artist.id}`}
+                                        variant="outlined"
+                                        size="small"
+                                        sx={{ mr: 1 }}
+                                    >
+                                        РЕДАКТИРОВАТЬ
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        color="error"
+                                        size="small"
+                                        onClick={() => deleteArtist(artist.id)}
+                                    >
+                                        УДАЛИТЬ
+                                    </Button>
                                 </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
             </TableContainer>
-            <Snackbar
-                open={snackbarOpen}
-                autoHideDuration={6000}
-                onClose={handleCloseSnackbar}
-                message={snackbarMessage}
-            />
-            <Dialog
-                open={openDeleteDialog}
-                onClose={handleCloseDeleteDialog}
-            >
-                <DialogTitle>Подтверждение удаления</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        Вы уверены, что хотите удалить этого артиста? Это действие нельзя отменить.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseDeleteDialog} color="primary">Отмена</Button>
-                    <Button onClick={confirmDelete} color="error">Удалить</Button>
-                </DialogActions>
-            </Dialog>
         </div>
     );
-}
+};
 
 export default ArtistList;

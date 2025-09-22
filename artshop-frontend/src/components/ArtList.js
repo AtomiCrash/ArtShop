@@ -91,7 +91,7 @@ function ArtList() {
             </Box>
             <Box mb={2}>
                 <TextField
-                    label="Имя классификации"
+                    label="Классификация"
                     value={classificationName}
                     onChange={(e) => setClassificationName(e.target.value)}
                     style={{ marginRight: '10px' }}
