@@ -69,7 +69,7 @@ public class ClassificationController {
                     content = @Content(schema = @Schema(implementation = String.class)))
     })
     @GetMapping("/by-art")
-    public ResponseEntity<?> getClassificationsByArtTitle(
+    public ResponseEntity<Object> getClassificationsByArtTitle(
             @Parameter(description = "Title of artwork to search by", required = true)
             @RequestParam String artTitle) {
         List<ClassificationDTO> classifications = classificationService.getClassificationsByArtTitle(artTitle);

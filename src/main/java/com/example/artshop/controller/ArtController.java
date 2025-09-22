@@ -122,7 +122,7 @@ public class ArtController {
                     content = @Content(schema = @Schema(implementation = String.class)))
     })
     @GetMapping("/by-classificationid")
-    public ResponseEntity<?> getArtsByClassificationId(
+    public ResponseEntity<Object> getArtsByClassificationId(
             @Parameter(description = "ID of the classification to search by", required = true)
             @RequestParam Integer id) {
         List<ArtDTO> arts = artService.getArtsByClassificationId(id);
