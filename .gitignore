@@ -4,6 +4,14 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Sensitive configuration files ###
+application-*.properties
+!application.properties
+application-docker.properties
+*.docker.properties
+.env
+.env.local
+
 ### STS ###
 .apt_generated
 .classpath
@@ -31,3 +39,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Logs ###
+logs/
+*.log
