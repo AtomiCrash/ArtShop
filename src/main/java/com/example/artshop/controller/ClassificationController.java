@@ -88,7 +88,7 @@ public class ClassificationController {
                     content = @Content(schema = @Schema(implementation = String.class)))
     })
     @GetMapping("/name")
-    public ResponseEntity<?> getClassificationsByName(
+    public ResponseEntity<Object> getClassificationsByName(
             @Parameter(description = "Name to search by", required = true)
             @RequestParam String name) {
         List<ClassificationDTO> classifications = classificationService.getClassificationsByName(name);

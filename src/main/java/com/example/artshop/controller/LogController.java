@@ -92,7 +92,7 @@ public class LogController {
     }
 
     @GetMapping("/status/{reportId}")
-    public ResponseEntity<?> getReportStatus(@PathVariable String reportId) {
+    public ResponseEntity<Object> getReportStatus(@PathVariable String reportId) {
         if (!reportStatuses.containsKey(reportId)) {
             return ResponseEntity.notFound().build();
         }
@@ -105,7 +105,7 @@ public class LogController {
     }
 
     @GetMapping("/download/{reportId}")
-    public ResponseEntity<?> downloadReport(@PathVariable String reportId) {
+    public ResponseEntity<Object> downloadReport(@PathVariable String reportId) {
         Path reportFile = reportFiles.get(reportId);
         if (reportFile == null) {
             return ResponseEntity.notFound().build();
