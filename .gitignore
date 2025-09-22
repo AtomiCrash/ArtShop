@@ -43,3 +43,7 @@ build/
 ### Logs ###
 logs/
 *.log
+
+### Test files ###
+src/test/java/
+src/test/resources/
