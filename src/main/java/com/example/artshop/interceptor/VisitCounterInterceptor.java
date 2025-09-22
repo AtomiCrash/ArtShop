@@ -9,7 +9,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 @Component
 public class VisitCounterInterceptor implements HandlerInterceptor {
-    @Autowired
+
     private VisitCounterService visitCounterService;
 
     @Override

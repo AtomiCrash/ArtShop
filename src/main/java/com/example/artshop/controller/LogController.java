@@ -62,17 +62,19 @@ public class LogController {
             executor.execute(() -> {
                 try {
                     Thread.sleep(20000);
-
                     List<String> logs = logService.extractLogsForPeriod(date, hour);
-                    
+
                     Path tempFile = Files.createTempFile(reportDir, "temp-", ".tmp");
                     Files.write(tempFile, logs, StandardCharsets.UTF_8);
-
                     Files.move(tempFile, reportFile, StandardCopyOption.ATOMIC_MOVE);
-
                     reportStatuses.put(reportId, "READY");
                     System.out.println("Successfully created report: " + reportFile);
                     System.out.println("Content size: " + Files.size(reportFile) + " bytes");
+                } catch (InterruptedException e) {
+                    // Восстанавливаем статус прерывания и выходим
+                    Thread.currentThread().interrupt();
+                    reportStatuses.put(reportId, "CANCELLED: Operation interrupted");
+                    System.out.println("Report generation interrupted for reportId: " + reportId);
                 } catch (Exception e) {
                     reportStatuses.put(reportId, "FAILED: " + e.getMessage());
                     e.printStackTrace();
