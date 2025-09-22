@@ -102,13 +102,10 @@ public class ArtController {
                     content = @Content(schema = @Schema(implementation = String.class)))
     })
     @GetMapping("/by-artist")
-    public ResponseEntity<Object> getArtsByArtistName(
+    public ResponseEntity<List<ArtDTO>> getArtsByArtistName(
             @Parameter(description = "Name of the artist to search by", required = true)
             @RequestParam String artistName) {
         List<ArtDTO> arts = artService.getArtsByArtistName(artistName);
-        if (arts.isEmpty()) {
-            return ResponseEntity.ok("No artworks found for artist: " + artistName);
-        }
         return ResponseEntity.ok(arts);
     }
 

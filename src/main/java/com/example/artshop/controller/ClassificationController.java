@@ -69,13 +69,10 @@ public class ClassificationController {
                     content = @Content(schema = @Schema(implementation = String.class)))
     })
     @GetMapping("/by-art")
-    public ResponseEntity<Object> getClassificationsByArtTitle(
+    public ResponseEntity<List<ClassificationDTO>> getClassificationsByArtTitle(
             @Parameter(description = "Title of artwork to search by", required = true)
             @RequestParam String artTitle) {
         List<ClassificationDTO> classifications = classificationService.getClassificationsByArtTitle(artTitle);
-        if (classifications.isEmpty()) {
-            return ResponseEntity.ok("No classifications found for artwork title: " + artTitle);
-        }
         return ResponseEntity.ok(classifications);
     }
 
@@ -88,13 +85,10 @@ public class ClassificationController {
                     content = @Content(schema = @Schema(implementation = String.class)))
     })
     @GetMapping("/name")
-    public ResponseEntity<Object> getClassificationsByName(
+    public ResponseEntity<List<ClassificationDTO>> getClassificationsByName(
             @Parameter(description = "Name to search by", required = true)
             @RequestParam String name) {
         List<ClassificationDTO> classifications = classificationService.getClassificationsByName(name);
-        if (classifications.isEmpty()) {
-            return ResponseEntity.ok("No classifications found with name containing: " + name);
-        }
         return ResponseEntity.ok(classifications);
     }
 
