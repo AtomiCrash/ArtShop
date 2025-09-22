@@ -93,41 +93,6 @@ public class ArtController {
         return ResponseEntity.ok(art);
     }
 
-    @Operation(summary = "Get artworks by artist name",
-            description = "Returns artworks created by artist with specified name")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Artworks found",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = ArtDTO.class)))),
-            @ApiResponse(responseCode = "200", description = "No artworks found",
-                    content = @Content(schema = @Schema(implementation = String.class)))
-    })
-    @GetMapping("/by-artist")
-    public ResponseEntity<List<ArtDTO>> getArtsByArtistName(
-            @Parameter(description = "Name of the artist to search by", required = true)
-            @RequestParam String artistName) {
-        List<ArtDTO> arts = artService.getArtsByArtistName(artistName);
-        return ResponseEntity.ok(arts);
-    }
-
-    @Operation(summary = "Get artworks by classification ID",
-            description = "Returns artworks with specified classification ID")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Artworks found",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = ArtDTO.class)))),
-            @ApiResponse(responseCode = "200", description = "No artworks found",
-                    content = @Content(schema = @Schema(implementation = String.class)))
-    })
-    @GetMapping("/by-classificationid")
-    public ResponseEntity<Object> getArtsByClassificationId(
-            @Parameter(description = "ID of the classification to search by", required = true)
-            @RequestParam Integer id) {
-        List<ArtDTO> arts = artService.getArtsByClassificationId(id);
-        if (arts.isEmpty()) {
-            return ResponseEntity.ok("No artworks found for classification ID: " + id);
-        }
-        return ResponseEntity.ok(arts);
-    }
-
     @Operation(summary = "Get artworks by classification name",
             description = "Returns artworks with classification containing specified name")
     @ApiResponses({

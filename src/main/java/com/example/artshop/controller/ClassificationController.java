@@ -60,38 +60,6 @@ public class ClassificationController {
         }
     }
 
-    @Operation(summary = "Get classifications by artwork title",
-            description = "Returns classifications of artworks with specified title")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Classifications found",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = ClassificationDTO.class)))),
-            @ApiResponse(responseCode = "200", description = "No classifications found",
-                    content = @Content(schema = @Schema(implementation = String.class)))
-    })
-    @GetMapping("/by-art")
-    public ResponseEntity<List<ClassificationDTO>> getClassificationsByArtTitle(
-            @Parameter(description = "Title of artwork to search by", required = true)
-            @RequestParam String artTitle) {
-        List<ClassificationDTO> classifications = classificationService.getClassificationsByArtTitle(artTitle);
-        return ResponseEntity.ok(classifications);
-    }
-
-    @Operation(summary = "Get classifications by name",
-            description = "Returns classifications containing specified name")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Classifications found",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = ClassificationDTO.class)))),
-            @ApiResponse(responseCode = "200", description = "No classifications found",
-                    content = @Content(schema = @Schema(implementation = String.class)))
-    })
-    @GetMapping("/name")
-    public ResponseEntity<List<ClassificationDTO>> getClassificationsByName(
-            @Parameter(description = "Name to search by", required = true)
-            @RequestParam String name) {
-        List<ClassificationDTO> classifications = classificationService.getClassificationsByName(name);
-        return ResponseEntity.ok(classifications);
-    }
-
     @Operation(summary = "Add multiple classifications",
             description = "Creates multiple classifications in one request (max 10 items)")
     @ApiResponses({

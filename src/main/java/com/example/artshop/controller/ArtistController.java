@@ -60,22 +60,6 @@ public class ArtistController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @Operation(summary = "Get artists by artwork title",
-            description = "Returns artists who created artworks with specified title")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Artists found",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = ArtistDTO.class)))),
-            @ApiResponse(responseCode = "200", description = "No artists found",
-                    content = @Content(schema = @Schema(implementation = String.class)))
-    })
-    @GetMapping("/by-art")
-    public ResponseEntity<List<ArtistDTO>> getArtistsByArtTitle(
-            @Parameter(description = "Title of artwork to search by", required = true)
-            @RequestParam String artTitle) {
-        List<ArtistDTO> artists = artistService.getArtistsByArtTitle(artTitle);
-        return ResponseEntity.ok(artists);
-    }
-
     @Operation(summary = "Search artists by name",
             description = "Returns artists filtered by first and/or last name")
     @ApiResponse(responseCode = "200", description = "Artists found",
