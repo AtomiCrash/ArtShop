@@ -7,14 +7,13 @@ import com.example.artshop.exception.NotFoundException;
 import com.example.artshop.exception.ValidationException;
 import com.example.artshop.model.Art;
 import com.example.artshop.model.Artist;
+import com.example.artshop.repository.ArtRepository;
 import com.example.artshop.repository.ArtistRepository;
 import com.example.artshop.service.cache.EntityCache;
 import jakarta.transaction.Transactional;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+
+import java.util.*;
 import java.util.stream.Collectors;
-import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,11 +25,13 @@ public class ArtistService implements ArtistServiceInterface {
     private final CacheService cacheService;
     private static final Logger LOGGER = LoggerFactory.getLogger(ArtistService.class);
     public static final String ARTIST_NOT_FOUND = "Artist not found with id: ";
+    private final ArtRepository artRepository;
 
     @Autowired
-    public ArtistService(ArtistRepository artistRepository, CacheService cacheService) {
+    public ArtistService(ArtistRepository artistRepository, CacheService cacheService, ArtRepository artRepository) {
         this.artistRepository = artistRepository;
         this.cacheService = cacheService;
+        this.artRepository = artRepository;
     }
 
     @Transactional
@@ -70,6 +71,21 @@ public class ArtistService implements ArtistServiceInterface {
                 (artistDTO.getLastName() == null || artistDTO.getLastName().trim().isEmpty())) {
             throw new ValidationException("Artist must have at least first name or last name");
         }
+
+        if (artistDTO.getFirstName() != null && artistDTO.getLastName() != null) {
+            Optional<Artist> existingArtist = artistRepository.findFirstByFirstNameAndLastName(
+                    artistDTO.getFirstName(),
+                    artistDTO.getLastName()
+            );
+
+            if (existingArtist.isPresent()) {
+                Artist artist = existingArtist.get();
+                LOGGER.warn("Artist already exists with name: {} {} (ID: {})",
+                        artist.getFirstName(), artist.getLastName(), artist.getId());
+                return convertToDTO(artist); // Возвращаем существующего художника
+            }
+        }
+
         if (artistDTO.getFirstName() != null && artistDTO.getFirstName().length() > 60) {
             throw new ValidationException("First name must be 60 characters or less");
         }
@@ -86,6 +102,10 @@ public class ArtistService implements ArtistServiceInterface {
         artist.setLastName(artistDTO.getLastName());
         Artist savedArtist = artistRepository.save(artist);
         cacheService.getArtistCache().put(savedArtist.getId(), savedArtist);
+
+        LOGGER.info("Created new artist: {} {} (ID: {})",
+                savedArtist.getFirstName(), savedArtist.getLastName(), savedArtist.getId());
+
         return convertToDTO(savedArtist);
     }
 
@@ -123,14 +143,26 @@ public class ArtistService implements ArtistServiceInterface {
 
     @Transactional
     public void deleteArtist(Integer id) {
-        Artist artist = artistRepository.findWithArtsById(id)
-                .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
-        artist.getArts().forEach(art -> {
-            art.getArtists().remove(artist);
-            cacheService.getArtCache().update(art.getId(), art);
-        });
-        artistRepository.delete(artist);
-        cacheService.getArtistCache().evict(id);
+        try {
+            Artist artist = artistRepository.findWithArtsById(id)
+                    .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
+
+            List<Art> artsCopy = new ArrayList<>(artist.getArts());
+
+            for (Art art : artsCopy) {
+                art.getArtists().remove(artist);
+                artRepository.save(art);
+                cacheService.getArtCache().update(art.getId(), art);
+            }
+
+            artist.getArts().clear();
+            artistRepository.delete(artist);
+            cacheService.getArtistCache().evict(id);
+
+        } catch (Exception e) {
+            LOGGER.error("Error deleting artist with id {}: {}", id, e.getMessage(), e);
+            throw new ValidationException("Failed to delete artist: " + e.getMessage());
+        }
     }
 
     @Transactional
@@ -152,7 +184,7 @@ public class ArtistService implements ArtistServiceInterface {
 
     @Transactional
     public ArtistDTO patchArtist(Integer id, ArtistPatchDTO artistPatchDTO) {
-        if (!artistPatchDTO.hasUpdates()) throw new IllegalArgumentException("No fields to update");
+        if (!artistPatchDTO.hasUpdates()) throw new ValidationException("No fields to update");
         Artist artist = artistRepository.findWithArtsById(id)
                 .orElseThrow(() -> new NotFoundException(ARTIST_NOT_FOUND + id));
         if (artistPatchDTO.getFirstName() != null) artist.setFirstName(artistPatchDTO.getFirstName());

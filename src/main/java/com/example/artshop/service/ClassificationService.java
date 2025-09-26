@@ -3,10 +3,12 @@ package com.example.artshop.service;
 import com.example.artshop.constants.ApplicationConstants;
 import com.example.artshop.dto.ClassificationDTO;
 import com.example.artshop.dto.ClassificationPatchDTO;
+import com.example.artshop.exception.NotFoundException;
 import com.example.artshop.exception.ValidationException;
 import com.example.artshop.model.Art;
 import com.example.artshop.model.Classification;
 import com.example.artshop.repository.ClassificationRepository;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -82,13 +84,10 @@ public class ClassificationService {
         return cacheService.getClassificationCache().get(id)
                 .map(this::convertToDTO)
                 .orElseGet(() -> {
-                    Optional<Classification> classification = classificationRepository.findWithArtsById(id);
-                    if (classification.isPresent()) {
-                        Classification cls = classification.get();
-                        cacheService.getClassificationCache().put(cls.getId(), cls);
-                        return convertToDTO(cls);
-                    }
-                    return null;
+                    Classification classification = classificationRepository.findWithArtsById(id)
+                            .orElseThrow(() -> new NotFoundException("Classification not found with id: " + id));
+                    cacheService.getClassificationCache().put(classification.getId(), classification);
+                    return convertToDTO(classification);
                 });
     }
 
@@ -127,12 +126,11 @@ public class ClassificationService {
     @Transactional
     public Classification patchClassification(int id, ClassificationPatchDTO patchDTO) {
         if (!patchDTO.hasUpdates()) {
-            throw new IllegalArgumentException("No fields to update");
+            throw new ValidationException("No fields to update");
         }
-        Classification classification = classificationRepository.findById(id);
-        if (classification == null) {
-            return null;
-        }
+        Classification classification = classificationRepository.findWithArtsById(id)
+                .orElseThrow(() -> new NotFoundException("Classification not found with id: " + id));
+
         if (patchDTO.getName() != null) {
             classification.setName(patchDTO.getName());
         }
@@ -146,14 +144,22 @@ public class ClassificationService {
 
     @Transactional
     public void deleteClassification(int id) {
-        classificationRepository.deleteById(id);
+        Classification classification = classificationRepository.findWithArtsById(id)
+                .orElseThrow(() -> new NotFoundException("Classification not found with id: " + id));
+
+        for (Art art : new HashSet<>(classification.getArts())) {
+            art.setClassification(null);
+        }
+
+        classificationRepository.delete(classification);
         cacheService.getClassificationCache().evict(id);
     }
 
     @Transactional
     public Classification updateClassification(int id, ClassificationDTO classificationDTO) {
-        Classification classification;
-        classification = classificationRepository.findById(id);
+        Classification classification = classificationRepository.findWithArtsById(id)
+                .orElseThrow(() -> new NotFoundException("Classification not found with id: " + id));
+
         if (classificationDTO == null) {
             throw new ValidationException("Classification data cannot be null");
         }
@@ -163,7 +169,7 @@ public class ClassificationService {
         if (classificationDTO.getDescription() == null || classificationDTO.getDescription().trim().isEmpty()) {
             throw new ValidationException("Classification description is required");
         }
-        
+
         classification.setName(classificationDTO.getName());
         classification.setDescription(classificationDTO.getDescription());
         Classification updated = classificationRepository.save(classification);

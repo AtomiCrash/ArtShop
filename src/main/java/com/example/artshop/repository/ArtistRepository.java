@@ -3,7 +3,6 @@ package com.example.artshop.repository;
 import com.example.artshop.model.Artist;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,34 +10,27 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ArtistRepository extends JpaRepository<Artist, Integer> {
-    Optional<Artist> findByFirstNameAndLastName(String firstName, String lastName);
+    @Query("SELECT a FROM Artist a WHERE a.firstName = :firstName AND a.lastName = :lastName")
+    List<Artist> findByFirstNameAndLastName(@Param("firstName") String firstName,
+                                            @Param("lastName") String lastName);
 
-    List<Artist> findByFirstNameContaining(String firstName);
+    default Optional<Artist> findFirstByFirstNameAndLastName(String firstName, String lastName) {
+        List<Artist> artists = findByFirstNameAndLastName(firstName, lastName);
+        return artists.isEmpty() ? Optional.empty() : Optional.of(artists.get(0));
+    }
 
-    List<Artist> findByLastNameContaining(String lastName);
+    @Query("SELECT a FROM Artist a LEFT JOIN FETCH a.arts WHERE a.id = :id")
+    Optional<Artist> findWithArtsById(@Param("id") Integer id);
 
-    List<Artist> findByFirstNameContainingAndLastNameContaining(String firstName, String lastName);
+    @Query("SELECT DISTINCT a FROM Artist a LEFT JOIN FETCH a.arts")
+    List<Artist> findAllWithArts();
 
-    @Query("SELECT a FROM Artist a WHERE LOWER(a.firstName) LIKE LOWER(concat('%', :query, '%'))" +
-            " OR LOWER(a.lastName) LIKE LOWER(concat('%', :query, '%'))")
-    List<Artist> searchByName(@Param("query") String query);
+    @Query("SELECT a FROM Artist a JOIN a.arts art WHERE art.title LIKE %:artTitle%")
+    List<Artist> findByArtTitleContaining(@Param("artTitle") String artTitle);
 
     List<Artist> findByFirstNameContainingIgnoreCase(String firstName);
 
     List<Artist> findByLastNameContainingIgnoreCase(String lastName);
 
     List<Artist> findByFirstNameContainingIgnoreCaseAndLastNameContainingIgnoreCase(String firstName, String lastName);
-
-    @Query("SELECT DISTINCT a FROM Artist a JOIN a.arts WHERE a.id = :id")
-    Optional<Artist> findWithArtsById(@Param("id") Integer id);
-
-    @Query("SELECT DISTINCT a FROM Artist a JOIN a.arts art WHERE LOWER(art.title)" +
-            " LIKE LOWER(concat('%', :artTitle, '%'))")
-    List<Artist> findByArtTitleContaining(@Param("artTitle") String artTitle);
-
-    @Query("SELECT DISTINCT a FROM Artist a LEFT JOIN a.arts")
-    List<Artist> findAllWithArts();
-
-    @EntityGraph(attributePaths = "arts")
-    List<Artist> findAll();
 }

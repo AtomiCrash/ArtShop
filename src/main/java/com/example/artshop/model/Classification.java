@@ -70,4 +70,14 @@ public class Classification {
                 ", artsCount=" + (arts != null ? arts.size() : 0) +
                 '}';
     }
+
+    public void addArt(Art art) {
+        this.arts.add(art);
+        art.setClassification(this);
+    }
+
+    public void removeArt(Art art) {
+        this.arts.remove(art);
+        art.setClassification(null);
+    }
 }

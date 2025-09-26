@@ -7,19 +7,41 @@ services:
       POSTGRES_USER: maxim
       POSTGRES_PASSWORD: 654321
     ports:
-      - "5432:5432"
+      - "8000:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maxim -d ArtGallery"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
 
-  app:
-    build:
-      context: .
-    container_name: artshop-app
+  backend:
+    build: .
+    container_name: artshop-backend
     ports:
       - "8100:8100"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ArtGallery
-      SPRING_DATASOURCE_USERNAME: maxim
-      SPRING_DATASOURCE_PASSWORD: 654321
+      SPRING_PROFILES_ACTIVE: docker
     depends_on:
-      - postgres
-    restart: unless-stopped
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+    command: >
+      sh -c "
+        sleep 5 &&
+        java -jar app.jar
+      "
+
+  frontend:
+    build: ./artshop-frontend
+    container_name: artshop-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: on-failure
+
+volumes:
+  pgdata:

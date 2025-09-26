@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
 import java.util.List;
 
 public class ArtDTO {
@@ -11,6 +13,7 @@ public class ArtDTO {
 
     @Schema(description = "Title of the artwork", example = "Starry Night", required = true)
     @NotBlank(message = "Title is required")
+    @Size(max = 255, message = "Название не должно превышать 255 символов")
     private String title;
 
     @Schema(description = "Year when artwork was created", example = "1889")

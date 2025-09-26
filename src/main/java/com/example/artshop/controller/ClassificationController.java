@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -53,11 +54,7 @@ public class ClassificationController {
             @Parameter(description = "ID of classification to be retrieved", required = true)
             @PathVariable int id) {
         ClassificationDTO classification = classificationService.getClassificationById(id);
-        if (classification != null) {
-            return ResponseEntity.ok(classification);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+        return ResponseEntity.ok(classification);
     }
 
     @Operation(summary = "Get classifications by artwork title",
@@ -65,17 +62,13 @@ public class ClassificationController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Classifications found",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = ClassificationDTO.class)))),
-            @ApiResponse(responseCode = "200", description = "No classifications found",
-                    content = @Content(schema = @Schema(implementation = String.class)))
+            @ApiResponse(responseCode = "404", description = "No classifications found")
     })
     @GetMapping("/by-art")
-    public ResponseEntity<?> getClassificationsByArtTitle(
+    public ResponseEntity<List<ClassificationDTO>> getClassificationsByArtTitle(
             @Parameter(description = "Title of artwork to search by", required = true)
             @RequestParam String artTitle) {
         List<ClassificationDTO> classifications = classificationService.getClassificationsByArtTitle(artTitle);
-        if (classifications.isEmpty()) {
-            return ResponseEntity.ok("No classifications found for artwork title: " + artTitle);
-        }
         return ResponseEntity.ok(classifications);
     }
 
@@ -84,17 +77,13 @@ public class ClassificationController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Classifications found",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = ClassificationDTO.class)))),
-            @ApiResponse(responseCode = "200", description = "No classifications found",
-                    content = @Content(schema = @Schema(implementation = String.class)))
+            @ApiResponse(responseCode = "404", description = "No classifications found")
     })
     @GetMapping("/name")
-    public ResponseEntity<?> getClassificationsByName(
+    public ResponseEntity<List<ClassificationDTO>> getClassificationsByName(
             @Parameter(description = "Name to search by", required = true)
             @RequestParam String name) {
         List<ClassificationDTO> classifications = classificationService.getClassificationsByName(name);
-        if (classifications.isEmpty()) {
-            return ResponseEntity.ok("No classifications found with name containing: " + name);
-        }
         return ResponseEntity.ok(classifications);
     }
 
@@ -112,7 +101,7 @@ public class ClassificationController {
                     required = true,
                     content = @Content(array = @ArraySchema(
                             schema = @Schema(implementation = ClassificationDTO.class))))
-            @RequestBody List<ClassificationDTO> classificationDTOs) {
+            @Valid @RequestBody List<ClassificationDTO> classificationDTOs) {
         List<Classification> createdClassifications = classificationService.addBulkClassifications(classificationDTOs);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdClassifications);
     }
@@ -121,8 +110,7 @@ public class ClassificationController {
     @ApiResponse(responseCode = "200", description = "Classification created successfully",
             content = @Content(schema = @Schema(implementation = Classification.class)))
     @PostMapping("/add")
-    public Classification createClassification(
-            @RequestBody ClassificationDTO classificationDTO) {
+    public Classification createClassification(@Valid @RequestBody ClassificationDTO classificationDTO) {
         Classification classification = new Classification();
         classification.setName(classificationDTO.getName());
         classification.setDescription(classificationDTO.getDescription());
@@ -140,7 +128,7 @@ public class ClassificationController {
     public ResponseEntity<Classification> patchClassification(
             @Parameter(description = "ID of classification to be updated", required = true)
             @PathVariable int id,
-            @RequestBody ClassificationPatchDTO patchDTO) {
+            @Valid @RequestBody ClassificationPatchDTO patchDTO) {
         Classification updated = classificationService.patchClassification(id, patchDTO);
         return ResponseEntity.ok(updated);
     }
@@ -148,13 +136,15 @@ public class ClassificationController {
     @Operation(summary = "Delete classification", description = "Deletes classification by ID")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Classification deleted successfully"),
-            @ApiResponse(responseCode = "404", description = "Classification not found")
+            @ApiResponse(responseCode = "404", description = "Classification not found"),
+            @ApiResponse(responseCode = "409", description = "Conflict - cannot delete classification with associated arts")
     })
     @DeleteMapping("/{id}")
-    public void deleteClassification(
+    public ResponseEntity<Void> deleteClassification(
             @Parameter(description = "ID of classification to be deleted", required = true)
             @PathVariable int id) {
         classificationService.deleteClassification(id);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Update classification", description = "Updates existing classification by ID")
@@ -167,13 +157,9 @@ public class ClassificationController {
     public ResponseEntity<Classification> updateClassification(
             @Parameter(description = "ID of classification to be updated", required = true)
             @PathVariable int id,
-            @RequestBody ClassificationDTO classificationDTO) {
+            @Valid @RequestBody ClassificationDTO classificationDTO) {
         Classification updated = classificationService.updateClassification(id, classificationDTO);
-        if (updated != null) {
-            return ResponseEntity.ok(updated);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+        return ResponseEntity.ok(updated);
     }
 
     @Operation(summary = "Get cache info", description = "Returns classification cache statistics")

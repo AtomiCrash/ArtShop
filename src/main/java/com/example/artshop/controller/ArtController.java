@@ -1,3 +1,4 @@
+// ArtController.java
 package com.example.artshop.controller;
 
 import com.example.artshop.dto.ArtDTO;
@@ -58,10 +59,10 @@ public class ArtController {
     @PostMapping("/bulk")
     public ResponseEntity<List<ArtDTO>> addBulkArts(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "List of exactly 3 ArtDTO objects",
+                    description = "List of ArtDTO objects (max 10 items)",
                     required = true,
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = ArtDTO.class))))
-            @RequestBody List<ArtDTO> artDTOs) {
+            @Valid @RequestBody List<ArtDTO> artDTOs) {
         List<ArtDTO> createdArts = artService.addBulkArts(artDTOs);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdArts);
     }
@@ -99,17 +100,13 @@ public class ArtController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Artworks found",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = ArtDTO.class)))),
-            @ApiResponse(responseCode = "200", description = "No artworks found",
-                    content = @Content(schema = @Schema(implementation = String.class)))
+            @ApiResponse(responseCode = "404", description = "No artworks found for artist")
     })
     @GetMapping("/by-artist")
-    public ResponseEntity<?> getArtsByArtistName(
+    public ResponseEntity<List<ArtDTO>> getArtsByArtistName(
             @Parameter(description = "Name of the artist to search by", required = true)
             @RequestParam String artistName) {
         List<ArtDTO> arts = artService.getArtsByArtistName(artistName);
-        if (arts.isEmpty()) {
-            return ResponseEntity.ok("No artworks found for artist: " + artistName);
-        }
         return ResponseEntity.ok(arts);
     }
 
@@ -118,17 +115,13 @@ public class ArtController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Artworks found",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = ArtDTO.class)))),
-            @ApiResponse(responseCode = "200", description = "No artworks found",
-                    content = @Content(schema = @Schema(implementation = String.class)))
+            @ApiResponse(responseCode = "404", description = "No artworks found for classification ID")
     })
     @GetMapping("/by-classificationid")
-    public ResponseEntity<?> getArtsByClassificationId(
+    public ResponseEntity<List<ArtDTO>> getArtsByClassificationId(
             @Parameter(description = "ID of the classification to search by", required = true)
             @RequestParam Integer id) {
         List<ArtDTO> arts = artService.getArtsByClassificationId(id);
-        if (arts.isEmpty()) {
-            return ResponseEntity.ok("No artworks found for classification ID: " + id);
-        }
         return ResponseEntity.ok(arts);
     }
 
@@ -137,17 +130,13 @@ public class ArtController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Artworks found",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = ArtDTO.class)))),
-            @ApiResponse(responseCode = "200", description = "No artworks found",
-                    content = @Content(schema = @Schema(implementation = String.class)))
+            @ApiResponse(responseCode = "404", description = "No artworks found for classification name")
     })
     @GetMapping("/by-classification")
-    public ResponseEntity<?> getArtsByClassificationName(
+    public ResponseEntity<List<ArtDTO>> getArtsByClassificationName(
             @Parameter(description = "Name of the classification to search by", required = true)
             @RequestParam String name) {
         List<ArtDTO> arts = artService.getArtsByClassificationName(name);
-        if (arts.isEmpty()) {
-            return ResponseEntity.ok("No artworks found for classification name containing: " + name);
-        }
         return ResponseEntity.ok(arts);
     }
 
@@ -156,13 +145,14 @@ public class ArtController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Artwork updated successfully",
                     content = @Content(schema = @Schema(implementation = ArtDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Artwork not found")
+            @ApiResponse(responseCode = "404", description = "Artwork not found"),
+            @ApiResponse(responseCode = "400", description = "Invalid input data")
     })
     @PatchMapping("/{id}")
     public ResponseEntity<ArtDTO> patchArt(
             @Parameter(description = "ID of the artwork to be updated", required = true)
             @PathVariable int id,
-            @RequestBody ArtPatchDTO artPatchDTO) {
+            @Valid @RequestBody ArtPatchDTO artPatchDTO) {
         ArtDTO updatedArt = artService.patchArt(id, artPatchDTO);
         return ResponseEntity.ok(updatedArt);
     }
@@ -171,28 +161,27 @@ public class ArtController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Artwork updated successfully",
                     content = @Content(schema = @Schema(implementation = ArtDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Artwork not found")
+            @ApiResponse(responseCode = "404", description = "Artwork not found"),
+            @ApiResponse(responseCode = "400", description = "Invalid input data")
     })
     @PutMapping("/{id}")
     public ResponseEntity<ArtDTO> updateArt(
             @Parameter(description = "ID of the artwork to be updated", required = true)
             @PathVariable int id,
-            @RequestBody ArtDTO artDTO) {
+            @Valid @RequestBody ArtDTO artDTO) {
         ArtDTO updatedArt = artService.updateArt(id, artDTO);
         return ResponseEntity.ok(updatedArt);
     }
 
     @Operation(summary = "Add new artwork", description = "Creates a new artwork")
-    @ApiResponse(responseCode = "200", description = "Artwork created successfully",
-            content = @Content(schema = @Schema(implementation = ArtDTO.class)))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Artwork created successfully",
+                    content = @Content(schema = @Schema(implementation = ArtDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input data")
+    })
     @PostMapping("/add")
     public ResponseEntity<ArtDTO> addArt(
-            @RequestBody @Valid
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Artwork object to be added",
-                    required = true,
-                    content = @Content(schema = @Schema(implementation = ArtDTO.class)))
-            ArtDTO artDTO) {
+            @Valid @RequestBody ArtDTO artDTO) {
         ArtDTO savedArt = artService.addArt(artDTO);
         return ResponseEntity.ok(savedArt);
     }

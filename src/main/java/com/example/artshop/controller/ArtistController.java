@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
@@ -65,24 +66,23 @@ public class ArtistController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Artists found",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = ArtistDTO.class)))),
-            @ApiResponse(responseCode = "200", description = "No artists found",
-                    content = @Content(schema = @Schema(implementation = String.class)))
+            @ApiResponse(responseCode = "404", description = "No artists found")
     })
     @GetMapping("/by-art")
-    public ResponseEntity<?> getArtistsByArtTitle(
+    public ResponseEntity<List<ArtistDTO>> getArtistsByArtTitle(
             @Parameter(description = "Title of artwork to search by", required = true)
             @RequestParam String artTitle) {
         List<ArtistDTO> artists = artistService.getArtistsByArtTitle(artTitle);
-        if (artists.isEmpty()) {
-            return ResponseEntity.ok("No artists found for artwork title: " + artTitle);
-        }
         return ResponseEntity.ok(artists);
     }
 
     @Operation(summary = "Search artists by name",
             description = "Returns artists filtered by first and/or last name")
-    @ApiResponse(responseCode = "200", description = "Artists found",
-            content = @Content(array = @ArraySchema(schema = @Schema(implementation = ArtistDTO.class))))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Artists found",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = ArtistDTO.class)))),
+            @ApiResponse(responseCode = "404", description = "No artists found")
+    })
     @GetMapping("/name")
     public ResponseEntity<List<ArtistDTO>> searchArtists(
             @Parameter(description = "First name to search by (optional)")
@@ -106,7 +106,7 @@ public class ArtistController {
                     description = "List of ArtistDTO objects (max 10 items)",
                     required = true,
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = ArtistDTO.class))))
-            @RequestBody List<ArtistDTO> artistDTOs) {
+            @Valid @RequestBody List<ArtistDTO> artistDTOs) {
         List<ArtistDTO> createdArtists = artistService.addBulkArtists(artistDTOs);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdArtists);
     }
@@ -121,7 +121,7 @@ public class ArtistController {
     public ResponseEntity<ArtistDTO> updateArtist(
             @Parameter(description = "ID of artist to be updated", required = true)
             @PathVariable Integer id,
-            @RequestBody ArtistDTO artistDTO) {
+            @Valid @RequestBody ArtistDTO artistDTO) {
         ArtistDTO updatedArtist = artistService.updateArtist(id, artistDTO);
         return ResponseEntity.ok(updatedArtist);
     }
@@ -130,8 +130,7 @@ public class ArtistController {
     @ApiResponse(responseCode = "200", description = "Artist created successfully",
             content = @Content(schema = @Schema(implementation = ArtistDTO.class)))
     @PostMapping("/add")
-    public ResponseEntity<ArtistDTO> createArtist(
-            @RequestBody ArtistDTO artistDTO) {
+    public ResponseEntity<ArtistDTO> createArtist(@Valid @RequestBody ArtistDTO artistDTO) {
         ArtistDTO createdArtist = artistService.createArtist(artistDTO);
         return ResponseEntity.ok(createdArtist);
     }
@@ -160,7 +159,7 @@ public class ArtistController {
     public ResponseEntity<ArtistDTO> patchArtist(
             @Parameter(description = "ID of artist to be patched", required = true)
             @PathVariable Integer id,
-            @RequestBody ArtistPatchDTO artistPatchDTO) {
+            @Valid @RequestBody ArtistPatchDTO artistPatchDTO) {
         ArtistDTO patchedArtist = artistService.patchArtist(id, artistPatchDTO);
         return ResponseEntity.ok(patchedArtist);
     }

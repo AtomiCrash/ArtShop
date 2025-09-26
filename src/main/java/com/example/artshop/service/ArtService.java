@@ -141,7 +141,8 @@ public class ArtService implements ArtServiceInterface {
         if (artDTO.getArtists() != null && !artDTO.getArtists().isEmpty()) {
             Set<Artist> artists = new HashSet<>();
             for (ArtistDTO artistDTO : artDTO.getArtists()) {
-                Optional<Artist> existingArtist = artistRepository.findByFirstNameAndLastName(
+                // Используем новый метод findFirstByFirstNameAndLastName
+                Optional<Artist> existingArtist = artistRepository.findFirstByFirstNameAndLastName(
                         artistDTO.getFirstName(),
                         artistDTO.getLastName());
 
@@ -220,7 +221,7 @@ public class ArtService implements ArtServiceInterface {
 
     Artist processArtist(ArtistDTO artistDTO) {
         if (artistDTO.getLastName() == null || artistDTO.getLastName().trim().isEmpty()) {
-            throw new IllegalArgumentException("Artist last name is required");
+            throw new ValidationException("Artist last name is required");
         }
 
         if (artistDTO.getId() != null) {
@@ -228,13 +229,13 @@ public class ArtService implements ArtServiceInterface {
                     .orElseThrow(() -> new NotFoundException(ART_NOT_FOUNDARTIST + artistDTO.getId()));
         }
 
-        Optional<Artist> existingArtist = artistRepository.findByFirstNameAndLastName(
+        List<Artist> existingArtists = artistRepository.findByFirstNameAndLastName(
                 artistDTO.getFirstName(),
                 artistDTO.getLastName()
         );
 
-        if (existingArtist.isPresent()) {
-            return existingArtist.orElse(null);
+        if (!existingArtists.isEmpty()) {
+            return existingArtists.get(0);
         }
 
         Artist artist = new Artist();
@@ -340,7 +341,7 @@ public class ArtService implements ArtServiceInterface {
         if (artDTO.getArtists() != null) {
             Set<Artist> updatedArtists = new HashSet<>();
             for (ArtistDTO artistDTO : artDTO.getArtists()) {
-                Optional<Artist> existingArtist = artistRepository.findByFirstNameAndLastName(
+                Optional<Artist> existingArtist = artistRepository.findFirstByFirstNameAndLastName(
                         artistDTO.getFirstName(),
                         artistDTO.getLastName());
 
@@ -386,20 +387,27 @@ public class ArtService implements ArtServiceInterface {
 
     @Transactional
     public void deleteArtById(int id) {
-        Art art = artRepository.findWithArtistsById(id)
-                .orElseThrow(() -> new NotFoundException(ART_NOT_FOUND + id));
-        for (Artist artist : art.getArtists()) {
+        Art art = artRepository.findWithArtistsAndClassificationById(id)
+                .orElseThrow(() -> new NotFoundException(String.format(ART_NOT_FOUND, id)));
+
+        for (Artist artist : new HashSet<>(art.getArtists())) {
             artist.getArts().remove(art);
             cacheService.getArtistCache().update(artist.getId(), artist);
         }
-        art.getArtists().clear();
+
+        if (art.getClassification() != null) {
+            Classification classification = art.getClassification();
+            classification.getArts().remove(art);
+            cacheService.getClassificationCache().update(classification.getId(), classification);
+        }
+
         artRepository.delete(art);
         cacheService.getArtCache().evict(id);
     }
 
     public ArtDTO getArtByTitle(String title) {
         Art art = artRepository.findByTitle(title)
-                .orElseThrow(() -> new NotFoundException(ART_NOT_FOUNDSTRING + title));
+                .orElseThrow(() -> new NotFoundException(String.format(ART_NOT_FOUNDSTRING, title)));
         return convertToDTO(art);
     }
 

@@ -6,7 +6,8 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "artist")
+@Table(name = "artist",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"firstName", "lastName"}))
 public class Artist {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -87,5 +88,15 @@ public class Artist {
                 ", lastName='" + lastName + '\'' +
                 ", artsCount=" + (arts != null ? arts.size() : 0) +
                 '}';
+    }
+
+    public void addArt(Art art) {
+        this.arts.add(art);
+        art.getArtists().add(this);
+    }
+
+    public void removeArt(Art art) {
+        this.arts.remove(art);
+        art.getArtists().remove(this);
     }
 }
